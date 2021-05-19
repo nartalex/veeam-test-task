@@ -26,15 +26,14 @@ namespace VeeamTestTask.Implementation.MultiThread
 
             while (bufferedStream.Read(buffer, 0, blockSize) != 0)
             {
-                // Мы не можем передавать в поток buffer, потому что сразу же после этого
-                // цикл начнется заново и перезапишет массив, а поток будет работать с новыми байтами.
-                // Поэтому создадим копию массива и передадим в поток именно копию
-                var arrayCopy = new byte[blockSize];
-                Array.Copy(buffer, arrayCopy, blockSize);
-
-                new Thread(parameterizedThreadStart).Start(new HashCalculationThreadParams(chunkIndex++, arrayCopy, hashAlgorithmName, callback));
+                new Thread(parameterizedThreadStart).Start(new HashCalculationThreadParams(chunkIndex++, buffer, hashAlgorithmName, callback));
                 ThreadCounter.Increment();
                 ThreadCounter.WaitUntilThreadsAreAvailable();
+
+                // Делая здесь новый массив, мы заменяем ссылку buffer на новую, и следующий блок
+                // будет писаться уже в новый массив, тогда как старая ссылка записана в HashCalculationThreadParams.
+                // Это позволяет нам не копировать массив, уменьшая трафик памяти
+                buffer = new byte[blockSize];
             }
 
             // Так как есть команда только на старт потоков, мы не можем отследить их завершение без костылей

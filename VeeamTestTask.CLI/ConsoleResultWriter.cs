@@ -7,7 +7,7 @@ namespace VeeamTestTask.CLI
     {
         private static readonly object consoleLock = new object();
 
-        public override void WriteHashToOutput(int chunkIndex, byte[] hashBytes)
+        protected override void WriteHashToOutput(int chunkIndex, byte[] hashBytes)
         {
             lock (consoleLock)
             {

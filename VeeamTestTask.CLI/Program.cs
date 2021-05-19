@@ -14,20 +14,22 @@ namespace VeeamTestTask.CLI
     {
         static void Main(string[] args)
         {
-            if (Debugger.IsAttached)
+            try
             {
-                Console.Write("Specify input file path: ");
-                var path = Console.ReadLine();
+                if (Debugger.IsAttached)
+                {
+                    Console.Write("Specify input file path: ");
+                    var path = Console.ReadLine();
 
-                Console.Write("Specify the block size in bytes: ");
-                var blockSizeString = Console.ReadLine();
-                var isValidInt = int.TryParse(blockSizeString, out var blockSize);
+                    Console.Write("Specify the block size in bytes: ");
+                    var blockSizeString = Console.ReadLine();
+                    var isValidInt = int.TryParse(blockSizeString, out var blockSize);
 
-                ValidateParamsAndExecute(path, isValidInt ? blockSize : -1, true, "SHA256");
-            }
-            else
-            {
-                var rootCommand = new RootCommand
+                    ValidateParamsAndExecute(path, isValidInt ? blockSize : -1, true, "SHA256");
+                }
+                else
+                {
+                    var rootCommand = new RootCommand
                 {
                     new Option<string>(
                         alias: "--path",
@@ -44,13 +46,20 @@ namespace VeeamTestTask.CLI
                         defaultValue: "SHA256"),
                 };
 
-                rootCommand.Description = "Console App to chunk file and calculate its' hashes";
+                    rootCommand.Description = "Console App to chunk file and calculate its' hashes";
 
-                rootCommand.Handler = CommandHandler.Create<string, int, bool, string>(ValidateParamsAndExecute);
+                    rootCommand.Handler = CommandHandler.Create<string, int, bool, string>(ValidateParamsAndExecute);
 
-                // Parse the incoming args and invoke the handler
-                rootCommand.Invoke(args);
+                    // Parse the incoming args and invoke the handler
+                    rootCommand.Invoke(args);
+                }
             }
+            catch(Exception e)
+            {
+                Console.WriteLine(e);
+            }
+
+            //Console.ReadLine();
         }
 
         public static void ValidateParamsAndExecute(string path, int blockSize, bool singleThread, string hashAlgorithmName)
@@ -85,12 +94,22 @@ namespace VeeamTestTask.CLI
             Console.WriteLine();
             Console.WriteLine($"Input file path: {path}");
             Console.WriteLine($"Block size: {blockSize} bytes");
+            Console.WriteLine($"Multithreading: {(singleThread ? "disabled" : "enabled")}");
+            Console.WriteLine($"Hash algorithm: {hashAlgorithmName}");
             Console.WriteLine();
 
             IChunkHashCalculator hashCalculator = singleThread ? new SingleThreadChunkHashCalculator() : new MultiThreadChunkHashCalculator();
-            var consoleOutputWriter = new ConsoleResultWriter();
+            //var resultWriter = new ConsoleResultWriter();
+            using var resultWriter = new FileResultWriter(path);
 
-            hashCalculator.SplitFileAndCalculateHashes(path, blockSize, hashAlgorithmName, consoleOutputWriter.WriteToBuffer);
+            var startDateTime = DateTime.Now;
+
+            hashCalculator.SplitFileAndCalculateHashes(path, blockSize, hashAlgorithmName, resultWriter.WriteToBuffer);
+
+            var finishDateTime = DateTime.Now;
+
+            Console.WriteLine();
+            Console.WriteLine($"Done. Took {(finishDateTime - startDateTime).TotalSeconds} s");
         }
     }
 }

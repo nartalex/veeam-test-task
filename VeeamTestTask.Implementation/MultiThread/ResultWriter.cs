@@ -85,6 +85,6 @@ namespace VeeamTestTask.Implementation.MultiThread
             }
         }
 
-        public abstract void WriteHashToOutput(int chunkIndex, byte[] hashBytes);
+        protected abstract void WriteHashToOutput(int chunkIndex, byte[] hashBytes);
     }
 }
