@@ -16,7 +16,7 @@ namespace VeeamTestTask.CLI
         {
             try
             {
-                if (Debugger.IsAttached)
+                if (Debugger.IsAttached || args.Length == 0)
                 {
                     Console.Write("Specify input file path: ");
                     var path = Console.ReadLine();
@@ -25,26 +25,26 @@ namespace VeeamTestTask.CLI
                     var blockSizeString = Console.ReadLine();
                     var isValidInt = int.TryParse(blockSizeString, out var blockSize);
 
-                    ValidateParamsAndExecute(path, isValidInt ? blockSize : -1, true, "SHA256");
+                    ValidateParamsAndExecute(path, isValidInt ? blockSize : -1, false, "SHA256");
                 }
                 else
                 {
                     var rootCommand = new RootCommand
-                {
-                    new Option<string>(
-                        alias: "--path",
-                        description: "Specify input file path"),
-                    new Option<int>(
-                        alias: "--block-size",
-                        description: "Specify the block size in bytes"),
-                    new Option<bool>(
-                        alias: "--single-thread",
-                        description: "Computes hash in single thread"),
-                    new Option<string>(
-                        alias: "--hash-algorithm-name",
-                        description: "Hash algorithm that will be used to calculate hash",
-                        defaultValue: "SHA256"),
-                };
+                    {
+                        new Option<string>(
+                            alias: "--path",
+                            description: "Specify input file path"),
+                        new Option<int>(
+                            alias: "--block-size",
+                            description: "Specify the block size in bytes"),
+                        new Option<bool>(
+                            alias: "--single-thread",
+                            description: "Computes hash in single thread"),
+                        new Option<string>(
+                            alias: "--hash-algorithm-name",
+                            description: "Hash algorithm that will be used to calculate hash",
+                            defaultValue: "SHA256"),
+                    };
 
                     rootCommand.Description = "Console App to chunk file and calculate its' hashes";
 
@@ -59,7 +59,7 @@ namespace VeeamTestTask.CLI
                 Console.WriteLine(e);
             }
 
-            //Console.ReadLine();
+            Console.ReadLine();
         }
 
         public static void ValidateParamsAndExecute(string path, int blockSize, bool singleThread, string hashAlgorithmName)
