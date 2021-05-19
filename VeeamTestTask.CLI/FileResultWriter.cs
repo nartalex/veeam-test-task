@@ -5,14 +5,14 @@ using VeeamTestTask.Implementation.MultiThread;
 
 namespace VeeamTestTask.CLI
 {
-    public class FileResultWriter : ResultWriter, IDisposable
+    public class FileResultWriter : ResultWriter
     {
         private static readonly object fileLock = new object();
         private static Stream outputStream;
 
         public FileResultWriter(string filepath)
         {
-            outputStream = File.Open($"{filepath}-{DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss")}.log", FileMode.Create, FileAccess.Write, FileShare.Read);
+            outputStream = File.Open(filepath, FileMode.Create, FileAccess.Write, FileShare.Read);
         }
 
         protected override void WriteHashToOutput(int chunkIndex, byte[] hashBytes)
@@ -36,7 +36,7 @@ namespace VeeamTestTask.CLI
             outputStream.Write(Encoding.UTF8.GetBytes(text));
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             outputStream.Dispose();
         }

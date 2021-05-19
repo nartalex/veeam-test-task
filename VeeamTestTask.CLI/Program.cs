@@ -19,21 +19,24 @@ namespace VeeamTestTask.CLI
                 if (Debugger.IsAttached || args.Length == 0)
                 {
                     Console.Write("Specify input file path: ");
-                    var path = Console.ReadLine();
+                    var inputPath = Console.ReadLine();
 
                     Console.Write("Specify the block size in bytes: ");
                     var blockSizeString = Console.ReadLine();
                     var isValidInt = int.TryParse(blockSizeString, out var blockSize);
 
-                    ValidateParamsAndExecute(path, isValidInt ? blockSize : -1, false, "SHA256");
+                    ValidateParamsAndExecute(inputPath, null, isValidInt ? blockSize : -1, false, "SHA256");
                 }
                 else
                 {
                     var rootCommand = new RootCommand
                     {
                         new Option<string>(
-                            alias: "--path",
+                            alias: "--input-path",
                             description: "Specify input file path"),
+                        new Option<string>(
+                            alias: "--output-path",
+                            description: "Specify output file path if you want it to be in file"),
                         new Option<int>(
                             alias: "--block-size",
                             description: "Specify the block size in bytes"),
@@ -48,29 +51,30 @@ namespace VeeamTestTask.CLI
 
                     rootCommand.Description = "Console App to chunk file and calculate its' hashes";
 
-                    rootCommand.Handler = CommandHandler.Create<string, int, bool, string>(ValidateParamsAndExecute);
+                    rootCommand.Handler = CommandHandler.Create<string, string, int, bool, string>(ValidateParamsAndExecute);
 
                     // Parse the incoming args and invoke the handler
                     rootCommand.Invoke(args);
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.WriteLine(e);
             }
 
+            Console.Write("Press Enter to continue: ");
             Console.ReadLine();
         }
 
-        public static void ValidateParamsAndExecute(string path, int blockSize, bool singleThread, string hashAlgorithmName)
+        public static void ValidateParamsAndExecute(string inputPath, string outputPath, int blockSize, bool singleThread, string hashAlgorithmName)
         {
-            if (string.IsNullOrWhiteSpace(path))
+            if (string.IsNullOrWhiteSpace(inputPath))
             {
                 Console.WriteLine("Input file path must be specified");
                 return;
             }
 
-            if (!File.Exists(path))
+            if (!File.Exists(inputPath))
             {
                 Console.WriteLine("Specified file does not exist");
                 return;
@@ -92,24 +96,23 @@ namespace VeeamTestTask.CLI
             }
 
             Console.WriteLine();
-            Console.WriteLine($"Input file path: {path}");
+            Console.WriteLine($"Input file path: {inputPath}");
             Console.WriteLine($"Block size: {blockSize} bytes");
             Console.WriteLine($"Multithreading: {(singleThread ? "disabled" : "enabled")}");
             Console.WriteLine($"Hash algorithm: {hashAlgorithmName}");
             Console.WriteLine();
 
             IChunkHashCalculator hashCalculator = singleThread ? new SingleThreadChunkHashCalculator() : new MultiThreadChunkHashCalculator();
-            //var resultWriter = new ConsoleResultWriter();
-            using var resultWriter = new FileResultWriter(path);
+            using ResultWriter resultWriter = string.IsNullOrWhiteSpace(outputPath) ? new ConsoleResultWriter() : new FileResultWriter(outputPath);
 
             var startDateTime = DateTime.Now;
 
-            hashCalculator.SplitFileAndCalculateHashes(path, blockSize, hashAlgorithmName, resultWriter.WriteToBuffer);
+            hashCalculator.SplitFileAndCalculateHashes(inputPath, blockSize, hashAlgorithmName, resultWriter.WriteToBuffer);
 
             var finishDateTime = DateTime.Now;
 
             Console.WriteLine();
-            Console.WriteLine($"Done. Took {(finishDateTime - startDateTime).TotalSeconds} s");
+            Console.WriteLine($"Done. Took {Math.Round((finishDateTime - startDateTime).TotalSeconds)} s");
         }
     }
 }

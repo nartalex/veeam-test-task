@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace VeeamTestTask.Implementation.MultiThread
 {
-    public abstract class ResultWriter
+    public abstract class ResultWriter : IDisposable
     {
         private static Dictionary<int, byte[]> outputBuffer = null;
         private static readonly object creationLock = new object();
@@ -86,5 +86,9 @@ namespace VeeamTestTask.Implementation.MultiThread
         }
 
         protected abstract void WriteHashToOutput(int chunkIndex, byte[] hashBytes);
+
+        public virtual void Dispose()
+        {
+        }
     }
 }
