@@ -20,13 +20,14 @@ namespace VeeamTestTask.Implementation.MultiThread
         {
             byte[] buffer = new byte[blockSize];
             var chunkIndex = 1;
+            var numberOfBytes = 0;
 
             using var bufferedStream = new BufferedStream(fileStream);
             var parameterizedThreadStart = new ParameterizedThreadStart(ComputeHashDelegate);
 
-            while (bufferedStream.Read(buffer, 0, blockSize) != 0)
+            while ((numberOfBytes = bufferedStream.Read(buffer, 0, blockSize)) != 0)
             {
-                new Thread(parameterizedThreadStart).Start(new HashCalculationThreadParams(chunkIndex++, buffer, hashAlgorithmName, callback));
+                new Thread(parameterizedThreadStart).Start(new HashCalculationThreadParams(chunkIndex++, buffer[0..numberOfBytes], hashAlgorithmName, callback));
                 ThreadCounter.Increment();
                 ThreadCounter.WaitUntilThreadsAreAvailable();
 

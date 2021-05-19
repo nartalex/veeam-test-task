@@ -19,13 +19,16 @@ namespace VeeamTestTask.Implementation.SingleThread
         {
             byte[] buffer = new byte[blockSize];
             var chunkIndex = 1;
+            var numberOfBytes = 0;
 
             using var bufferedStream = new BufferedStream(fileStream);
             using var hashAlgorithm = HashAlgorithm.Create(hashAlgorithmName);
 
-            while (bufferedStream.Read(buffer, 0, blockSize) != 0)
+            while ((numberOfBytes = bufferedStream.Read(buffer, 0, blockSize)) != 0)
             {
-                var hashBytes = hashAlgorithm.ComputeHash(buffer);
+                // Если мы находимся в последнем блоке, часть массива будет занята нулями
+                // Чтобы не расчитывать хэш для нулевой части, укажем явно границы массива
+                var hashBytes = hashAlgorithm.ComputeHash(buffer[0..numberOfBytes]);
                 callback(chunkIndex++, hashBytes);
             }
         }
