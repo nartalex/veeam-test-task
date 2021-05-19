@@ -74,15 +74,23 @@ namespace VeeamTestTask.CLI
                 return;
             }
 
-            if (!File.Exists(inputPath))
+            var inputFile = new FileInfo(inputPath);
+
+            if (!inputFile.Exists)
             {
                 Console.WriteLine("Specified file does not exist");
                 return;
             }
 
-            if (blockSize < 1)
+            if(inputFile.Length == 0)
             {
-                Console.WriteLine("Block size must be greater that zero");
+                Console.WriteLine("Can not generate hash from empty file");
+                return;
+            }
+
+            if (blockSize < 1 || blockSize > 2147483591)
+            {
+                Console.WriteLine("Block size must be between 1 and 2,147,483,591");
                 return;
             }
 
@@ -100,6 +108,8 @@ namespace VeeamTestTask.CLI
             Console.WriteLine($"Block size: {blockSize} bytes");
             Console.WriteLine($"Multithreading: {(singleThread ? "disabled" : "enabled")}");
             Console.WriteLine($"Hash algorithm: {hashAlgorithmName}");
+            Console.WriteLine();
+            Console.WriteLine($"Number of blocks: {Math.Ceiling(inputFile.Length / (decimal)blockSize)}");
             Console.WriteLine();
 
             IChunkHashCalculator hashCalculator = singleThread ? new SingleThreadChunkHashCalculator() : new MultiThreadChunkHashCalculator();
