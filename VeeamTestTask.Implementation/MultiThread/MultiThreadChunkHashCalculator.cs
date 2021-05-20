@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
@@ -73,12 +74,19 @@ namespace VeeamTestTask.Implementation.MultiThread
         {
             var hashCalculationThreadParams = (HashCalculationThreadParams)param;
 
-            // Объект алгоритма хэширования должен быть разный для каждого треда, иначе получим одинаковые хэши на выходе
-            using var hashAlgorithm = HashAlgorithm.Create(hashCalculationThreadParams.HashAlgorithmName);
+            try
+            {
+                // Объект алгоритма хэширования должен быть разный для каждого треда, иначе получим одинаковые хэши на выходе
+                using var hashAlgorithm = HashAlgorithm.Create(hashCalculationThreadParams.HashAlgorithmName);
 
-            var hashBytes = hashAlgorithm.ComputeHash(hashCalculationThreadParams.BufferToHash);
+                var hashBytes = hashAlgorithm.ComputeHash(hashCalculationThreadParams.BufferToHash);
 
-            hashCalculationThreadParams.ThreadCallback(hashCalculationThreadParams.ChunkIndex, hashBytes);
+                hashCalculationThreadParams.ThreadCallback(hashCalculationThreadParams.ChunkIndex, hashBytes);
+            }
+            catch(Exception e)
+            {
+                Console.WriteLine($"\n{e}");
+            }
 
             ThreadCounter.Decrement();
         }
