@@ -1,9 +1,9 @@
 ﻿using System;
-using VeeamTestTask.Implementation.MultiThread;
+using VeeamTestTask.Contracts;
 
-namespace VeeamTestTask.CLI
+namespace VeeamTestTask.Implementation
 {
-    public class ConsoleResultWriter : ResultWriter
+    public class ConsoleResultWriter : ThreadSafeResultWriter
     {
         private static readonly object consoleLock = new object();
 

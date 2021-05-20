@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace VeeamTestTask.Implementation.MultiThread
+namespace VeeamTestTask.Contracts
 {
-    public abstract class ResultWriter : IDisposable
+    public abstract class ThreadSafeResultWriter : IDisposable
     {
         /// <summary>
         /// Буфер сообщений, сделан для вывода хэшей в строгой последовательности
@@ -14,7 +14,7 @@ namespace VeeamTestTask.Implementation.MultiThread
         private static readonly object bufferLock = new object();
         private static int lastChunkIndex = 0;
 
-        protected ResultWriter()
+        protected ThreadSafeResultWriter()
         {
         }
 
@@ -31,7 +31,8 @@ namespace VeeamTestTask.Implementation.MultiThread
                     {
                         if (outputBuffer == null)
                         {
-                            outputBuffer = new(ThreadCounter.MaxThreadNumber);
+                            // 16 элементов в буффере должно хватить для любого сценария поведения потоков
+                            outputBuffer = new(16);
                         }
                     }
                 }

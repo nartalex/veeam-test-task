@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using VeeamTestTask.Contracts;
 
 namespace VeeamTestTask.Implementation.MultiThread
 {
@@ -53,7 +54,7 @@ namespace VeeamTestTask.Implementation.MultiThread
         /// </summary>
         public static void WaitUntilAllWorkIsDone()
         {
-            while (_counter != 0 || ResultWriter.HasMessagesInBuffer)
+            while (_counter != 0 || ThreadSafeResultWriter.HasMessagesInBuffer)
             {
                 Thread.Sleep(100);
             }

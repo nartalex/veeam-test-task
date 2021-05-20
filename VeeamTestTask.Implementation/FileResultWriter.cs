@@ -1,10 +1,10 @@
 ﻿using System.IO;
 using System.Text;
-using VeeamTestTask.Implementation.MultiThread;
+using VeeamTestTask.Contracts;
 
-namespace VeeamTestTask.CLI
+namespace VeeamTestTask.Implementation
 {
-    public class FileResultWriter : ResultWriter
+    public class FileResultWriter : ThreadSafeResultWriter
     {
         private static readonly object fileLock = new object();
         private static Stream outputStream;

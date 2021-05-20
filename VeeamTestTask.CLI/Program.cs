@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using VeeamTestTask.Contracts;
+using VeeamTestTask.Implementation;
 using VeeamTestTask.Implementation.MultiThread;
 using VeeamTestTask.Implementation.SingleThread;
 
@@ -113,7 +114,7 @@ namespace VeeamTestTask.CLI
             Console.WriteLine();
 
             IChunkHashCalculator hashCalculator = singleThread ? new SingleThreadChunkHashCalculator() : new MultiThreadChunkHashCalculator();
-            using ResultWriter resultWriter = string.IsNullOrWhiteSpace(outputPath) ? new ConsoleResultWriter() : new FileResultWriter(outputPath);
+            using ThreadSafeResultWriter resultWriter = string.IsNullOrWhiteSpace(outputPath) ? new ConsoleResultWriter() : new FileResultWriter(outputPath);
 
             var startDateTime = DateTime.Now;
 
