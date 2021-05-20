@@ -15,6 +15,11 @@ namespace VeeamTestTask.Implementation.MultiThread
         }
 
         /// <summary>
+        /// Ограничение количества потоков на алгоритм расчета хэша
+        /// </summary>
+        public static int MaxThreadNumber => Environment.ProcessorCount;
+
+        /// <summary>
         /// Увеличить счетчик активных потоков
         /// Применяется сразу после создания потока
         /// </summary>
@@ -33,11 +38,11 @@ namespace VeeamTestTask.Implementation.MultiThread
         }
 
         /// <summary>
-        /// Ожидание освобождения потоков, если их количество превысило количество логических ядер * 2
+        /// Ожидание освобождения потоков, если их количество превысило количество логических ядер
         /// </summary>
         public static void WaitUntilThreadsAreAvailable()
         {
-            while(_counter >= Environment.ProcessorCount * 2)
+            while(_counter >= MaxThreadNumber)
             {
                 Thread.Sleep(100);
             }

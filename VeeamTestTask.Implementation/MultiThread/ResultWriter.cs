@@ -6,6 +6,9 @@ namespace VeeamTestTask.Implementation.MultiThread
 {
     public abstract class ResultWriter : IDisposable
     {
+        /// <summary>
+        /// Буфер сообщений, сделан для вывода хэшей в строгой последовательности
+        /// </summary>
         private static Dictionary<int, byte[]> outputBuffer = null;
         private static readonly object creationLock = new object();
         private static readonly object bufferLock = new object();
@@ -15,6 +18,9 @@ namespace VeeamTestTask.Implementation.MultiThread
         {
         }
 
+        /// <summary>
+        /// Thread-safe singleton
+        /// </summary>
         private static Dictionary<int, byte[]> Buffer
         {
             get
@@ -25,7 +31,7 @@ namespace VeeamTestTask.Implementation.MultiThread
                     {
                         if (outputBuffer == null)
                         {
-                            outputBuffer = new(Environment.ProcessorCount * 2);
+                            outputBuffer = new(ThreadCounter.MaxThreadNumber);
                         }
                     }
                 }
@@ -34,6 +40,9 @@ namespace VeeamTestTask.Implementation.MultiThread
             }
         }
 
+        /// <summary>
+        /// Флаг, показывающий наличие сообщений в буфере
+        /// </summary>
         public static bool HasMessagesInBuffer
         {
             get
@@ -45,13 +54,26 @@ namespace VeeamTestTask.Implementation.MultiThread
             }
         }
 
+        /// <summary>
+        /// Общий метод вывода сообщений
+        /// Гарантирует, что сообщения выведутся в порядке, определенном chunkIndex
+        /// </summary>
+        /// <remarks>
+        /// Если сообщения идут последовательно (например, при однопоточном режиме или слабой пропускной способности),
+        /// они будут выводиться сразу. Если сообщения приходят в разнобой, неподходящие для вывода будут сохраняться в буфер,
+        /// а последний выведенный индекс будет сохраняться. При выводе нужного сообщения, буфер будет просматриваться на наличие следующих сообщений по списку
+        /// </remarks>         
+        /// <param name="chunkIndex"></param>
+        /// <param name="hashBytes"></param>
         public void WriteToBuffer(int chunkIndex, byte[] hashBytes)
         {
+            // Если мы видим, что пришел следующий по очереди блок, мы можем обойти буфер и вывести его сразу
             if (chunkIndex == lastChunkIndex + 1)
             {
                 WriteHashToOutput(chunkIndex, hashBytes);
                 lastChunkIndex = chunkIndex;
             }
+            // Иначе - добавим в буфер и будем ждать подходящих сообщений
             else
             {
                 lock (bufferLock)
@@ -67,20 +89,14 @@ namespace VeeamTestTask.Implementation.MultiThread
         {
             lock (bufferLock)
             {
-                while (true)
-                {
-                    var chunkIndexToSearch = lastChunkIndex + 1;
+                var chunkIndexToSearch = lastChunkIndex + 1;
 
-                    if (Buffer.ContainsKey(chunkIndexToSearch))
-                    {
-                        WriteHashToOutput(chunkIndexToSearch, Buffer[chunkIndexToSearch]);
-                        Buffer.Remove(chunkIndexToSearch);
-                        lastChunkIndex++;
-                    }
-                    else
-                    {
-                        break;
-                    }
+                while (Buffer.ContainsKey(chunkIndexToSearch))
+                {
+                    WriteHashToOutput(chunkIndexToSearch, Buffer[chunkIndexToSearch]);
+                    Buffer.Remove(chunkIndexToSearch);
+                    lastChunkIndex++;
+                    chunkIndexToSearch++;
                 }
             }
         }
