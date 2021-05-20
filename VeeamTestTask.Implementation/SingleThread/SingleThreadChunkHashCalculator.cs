@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using VeeamTestTask.Contracts;
@@ -17,6 +17,15 @@ namespace VeeamTestTask.Implementation.SingleThread
         /// <inheritdoc/>
         public void SplitFileAndCalculateHashes(Stream fileStream, int blockSize, string hashAlgorithmName, IChunkHashCalculator.ReturnResultDelegate callback)
         {
+            // Это позволяет нам не создавать слишком большой массив буффера,
+            // если файл сам по себе меньше размера блока
+            var bytesLeft = fileStream.Length;
+            if (bytesLeft < blockSize)
+            {
+                Debug.WriteLine($"File length is lower than block size, new block size is {bytesLeft} b");
+                blockSize = (int)bytesLeft;
+            }
+
             byte[] buffer = new byte[blockSize];
             var chunkIndex = 1;
             var numberOfBytes = 0;
