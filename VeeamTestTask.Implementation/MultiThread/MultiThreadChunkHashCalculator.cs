@@ -31,11 +31,9 @@ namespace VeeamTestTask.Implementation.MultiThread
             byte[] buffer = new byte[blockSize];
             var chunkIndex = 1;
             var numberOfBytes = 0;
-
-            using var bufferedStream = new BufferedStream(fileStream);
             var parameterizedThreadStart = new ParameterizedThreadStart(ComputeHashDelegate);
 
-            while ((numberOfBytes = bufferedStream.Read(buffer, 0, blockSize)) != 0)
+            while ((numberOfBytes = fileStream.Read(buffer, 0, blockSize)) != 0)
             {
                 new Thread(parameterizedThreadStart).Start(new HashCalculationThreadParams(chunkIndex, buffer[0..numberOfBytes], hashAlgorithmName, callback));
                 ThreadCounter.Increment();
@@ -43,14 +41,13 @@ namespace VeeamTestTask.Implementation.MultiThread
 
                 Debug.WriteLine($"Starting thread with chunk index {chunkIndex}. Bytes left: {fileStream.Length - fileStream.Position}");
 
-                // Здесь оптимизация выше уже не работает
-                // Почему-то на последних блоках fileStream.Position приравнивается к fileStream.Length, 
-                // что делает bytesLeft равным нулю
-                //bytesLeft = fileStream.Length - fileStream.Position;
-                //if (bytesLeft < blockSize)
-                //{
-                //    blockSize = (int)bytesLeft;
-                //}
+                // Это позволяет нам не создавать слишком большой массив буффера,
+                // если последний блок меньше размеров блока
+                bytesLeft = fileStream.Length - fileStream.Position;
+                if (bytesLeft < blockSize)
+                {
+                    blockSize = (int)bytesLeft;
+                }
 
                 chunkIndex++;
 

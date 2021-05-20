@@ -29,11 +29,9 @@ namespace VeeamTestTask.Implementation.SingleThread
             byte[] buffer = new byte[blockSize];
             var chunkIndex = 1;
             var numberOfBytes = 0;
-
-            using var bufferedStream = new BufferedStream(fileStream);
             using var hashAlgorithm = HashAlgorithm.Create(hashAlgorithmName);
 
-            while ((numberOfBytes = bufferedStream.Read(buffer, 0, blockSize)) != 0)
+            while ((numberOfBytes = fileStream.Read(buffer, 0, blockSize)) != 0)
             {
                 // Если мы находимся в последнем блоке, часть массива будет занята нулями
                 // Чтобы не расчитывать хэш для нулевой части, укажем явно границы массива
