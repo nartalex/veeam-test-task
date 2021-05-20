@@ -37,8 +37,8 @@ namespace VeeamTestTask.Implementation.MultiThread
             while ((numberOfBytes = bufferedStream.Read(buffer, 0, blockSize)) != 0)
             {
                 new Thread(parameterizedThreadStart).Start(new HashCalculationThreadParams(chunkIndex, buffer[0..numberOfBytes], hashAlgorithmName, callback));
-                ThreadCounter.Increment();
-                ThreadCounter.WaitUntilThreadsAreAvailable();
+                ResourceWatcher.IncrementThreadCounter();
+                ResourceWatcher.WaitUntilResourcesAreAvailable(blockSize);
 
                 Debug.WriteLine($"Starting thread with chunk index {chunkIndex}. Bytes left: {fileStream.Length - fileStream.Position}");
 
@@ -62,7 +62,7 @@ namespace VeeamTestTask.Implementation.MultiThread
             // Так как есть команда только на старт потоков, мы не можем отследить их завершение без костылей
             // Этот метод ждет, пока выполнятся все потоки и очистится буфер вывода
             // Иначе процесс завершится без завершения потоков
-            ThreadCounter.WaitUntilAllWorkIsDone();
+            ResourceWatcher.WaitUntilAllWorkIsDone();
         }
 
         /// <summary>
@@ -80,7 +80,7 @@ namespace VeeamTestTask.Implementation.MultiThread
 
             hashCalculationThreadParams.ThreadCallback(hashCalculationThreadParams.ChunkIndex, hashBytes);
 
-            ThreadCounter.Decrement();
+            ResourceWatcher.DecrementThreadCounter();
         }
     }
 }

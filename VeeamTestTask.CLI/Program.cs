@@ -83,7 +83,7 @@ namespace VeeamTestTask.CLI
                 return;
             }
 
-            if(inputFile.Length == 0)
+            if (inputFile.Length == 0)
             {
                 Console.WriteLine("Can not generate hash from empty file");
                 return;
@@ -92,6 +92,12 @@ namespace VeeamTestTask.CLI
             if (blockSize < 1 || blockSize > 2147483591)
             {
                 Console.WriteLine("Block size must be between 1 and 2,147,483,591");
+                return;
+            }
+
+            if(!ResourceWatcher.IsMemoryAvailableEnought(blockSize))
+            {
+                Console.WriteLine("Available memory must be at least 1.5 times greater that block size. Try free up memory or lower block size.");
                 return;
             }
 

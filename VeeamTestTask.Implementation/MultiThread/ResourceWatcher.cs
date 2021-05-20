@@ -1,17 +1,29 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Threading;
 using VeeamTestTask.Contracts;
 
 namespace VeeamTestTask.Implementation.MultiThread
 {
     /// <summary>
-    /// Счетчик активных потоков
+    /// Счетчик ресурсов
     /// </summary>
-    internal class ThreadCounter
+    public class ResourceWatcher
     {
-        private static int _counter = 0;
+        private static int _threadCounter = 0;
+        private static PerformanceCounter _ramCounter;
+        private const float _blockSizeMultiplier = 1.5f;
 
-        private ThreadCounter()
+        static ResourceWatcher()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                _ramCounter = new PerformanceCounter("Memory", "Available bytes");
+            }
+        }
+
+        private ResourceWatcher()
         {
         }
 
@@ -24,29 +36,34 @@ namespace VeeamTestTask.Implementation.MultiThread
         /// Увеличить счетчик активных потоков
         /// Применяется сразу после создания потока
         /// </summary>
-        public static void Increment()
+        public static void IncrementThreadCounter()
         {
-            Interlocked.Increment(ref _counter);
+            Interlocked.Increment(ref _threadCounter);
         }
 
         /// <summary>
         /// Уменьшить счетчик активных потоков
         /// Применяется сразу после завершения потока
         /// </summary>
-        public static void Decrement()
+        public static void DecrementThreadCounter()
         {
-            Interlocked.Decrement(ref _counter);
+            Interlocked.Decrement(ref _threadCounter);
         }
 
         /// <summary>
         /// Ожидание освобождения потоков, если их количество превысило количество логических ядер
         /// </summary>
-        public static void WaitUntilThreadsAreAvailable()
+        public static void WaitUntilResourcesAreAvailable(int blockSize)
         {
-            while(_counter >= MaxThreadNumber)
+            while (_threadCounter >= MaxThreadNumber || !IsMemoryAvailableEnought(blockSize))
             {
                 Thread.Sleep(100);
             }
+        }
+
+        public static bool IsMemoryAvailableEnought(int blockSize)
+        {
+            return (_ramCounter?.NextValue() ?? int.MaxValue) >= blockSize * _blockSizeMultiplier;
         }
 
         /// <summary>
@@ -54,7 +71,7 @@ namespace VeeamTestTask.Implementation.MultiThread
         /// </summary>
         public static void WaitUntilAllWorkIsDone()
         {
-            while (_counter != 0 || ThreadSafeResultWriter.HasMessagesInBuffer)
+            while (_threadCounter != 0 || ThreadSafeResultWriter.HasMessagesInBuffer)
             {
                 Thread.Sleep(100);
             }
