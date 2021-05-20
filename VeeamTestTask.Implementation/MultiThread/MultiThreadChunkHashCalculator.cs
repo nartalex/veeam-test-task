@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
@@ -37,13 +36,11 @@ namespace VeeamTestTask.Implementation.MultiThread
 
             while ((numberOfBytes = bufferedStream.Read(buffer, 0, blockSize)) != 0)
             {
-                Debug.Write($"Starting thread with chunk index {chunkIndex}. ");
-
-                new Thread(parameterizedThreadStart).Start(new HashCalculationThreadParams(chunkIndex++, buffer[0..numberOfBytes], hashAlgorithmName, callback));
+                new Thread(parameterizedThreadStart).Start(new HashCalculationThreadParams(chunkIndex, buffer[0..numberOfBytes], hashAlgorithmName, callback));
                 ThreadCounter.Increment();
                 ThreadCounter.WaitUntilThreadsAreAvailable();
 
-                Debug.WriteLine($"Bytes left: {fileStream.Length - fileStream.Position}");
+                Debug.WriteLine($"Starting thread with chunk index {chunkIndex}. Bytes left: {fileStream.Length - fileStream.Position}");
 
                 // Здесь оптимизация выше уже не работает
                 // Почему-то на последних блоках fileStream.Position приравнивается к fileStream.Length, 
@@ -53,6 +50,8 @@ namespace VeeamTestTask.Implementation.MultiThread
                 //{
                 //    blockSize = (int)bytesLeft;
                 //}
+
+                chunkIndex++;
 
                 // Делая здесь новый массив, мы заменяем ссылку buffer на новую, и следующий блок
                 // будет писаться уже в новый массив, тогда как старая ссылка записана в HashCalculationThreadParams.
