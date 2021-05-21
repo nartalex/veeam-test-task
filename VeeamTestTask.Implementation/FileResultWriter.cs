@@ -6,17 +6,17 @@ namespace VeeamTestTask.Implementation
 {
     public class FileResultWriter : ThreadSafeResultWriter
     {
-        private static readonly object fileLock = new object();
-        private static Stream outputStream;
+        private static readonly object _fileLock = new object();
+        private static Stream _outputStream;
 
         public FileResultWriter(string filepath)
         {
-            outputStream = File.Open(filepath, FileMode.Create, FileAccess.Write, FileShare.Read);
+            _outputStream = File.Open(filepath, FileMode.Create, FileAccess.Write, FileShare.Read);
         }
 
         protected override void WriteHashToOutput(int chunkIndex, byte[] hashBytes)
         {
-            lock (fileLock)
+            lock (_fileLock)
             {
                 WriteToStream(chunkIndex.ToString());
                 WriteToStream(". ");
@@ -32,12 +32,12 @@ namespace VeeamTestTask.Implementation
 
         private static void WriteToStream(string text)
         {
-            outputStream.Write(Encoding.UTF8.GetBytes(text));
+            _outputStream.Write(Encoding.UTF8.GetBytes(text));
         }
 
         public override void Dispose()
         {
-            outputStream.Dispose();
+            _outputStream.Dispose();
         }
     }
 }

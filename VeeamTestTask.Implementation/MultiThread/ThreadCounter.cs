@@ -7,13 +7,9 @@ namespace VeeamTestTask.Implementation.MultiThread
     /// <summary>
     /// Счетчик активных потоков
     /// </summary>
-    internal class ThreadCounter
+    internal static class ThreadCounter
     {
         private static int _counter = 0;
-
-        private ThreadCounter()
-        {
-        }
 
         /// <summary>
         /// Ограничение количества потоков на алгоритм расчета хэша
@@ -43,7 +39,7 @@ namespace VeeamTestTask.Implementation.MultiThread
         /// </summary>
         public static void WaitUntilThreadsAreAvailable()
         {
-            while(_counter >= MaxThreadNumber)
+            while (_counter >= MaxThreadNumber)
             {
                 Thread.Sleep(100);
             }

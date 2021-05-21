@@ -35,7 +35,12 @@ namespace VeeamTestTask.Implementation.SingleThread
             {
                 // Если мы находимся в последнем блоке, часть массива будет занята нулями
                 // Чтобы не расчитывать хэш для нулевой части, укажем явно границы массива
-                var hashBytes = hashAlgorithm.ComputeHash(buffer[0..numberOfBytes]);
+                if (blockSize > numberOfBytes)
+                {
+                    buffer = buffer[0..numberOfBytes];
+                }
+
+                var hashBytes = hashAlgorithm.ComputeHash(buffer);
                 callback(chunkIndex++, hashBytes);
             }
         }

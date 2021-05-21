@@ -5,11 +5,11 @@ namespace VeeamTestTask.Implementation
 {
     public class ConsoleResultWriter : ThreadSafeResultWriter
     {
-        private static readonly object consoleLock = new object();
+        private static readonly object _consoleLock = new object();
 
         protected override void WriteHashToOutput(int chunkIndex, byte[] hashBytes)
         {
-            lock (consoleLock)
+            lock (_consoleLock)
             {
                 Console.Write(chunkIndex);
                 Console.Write(". ");
@@ -25,7 +25,7 @@ namespace VeeamTestTask.Implementation
 
         public static void WriteLineThreadSafe(string text)
         {
-            lock (consoleLock)
+            lock (_consoleLock)
             {
                 Console.WriteLine(text);
             }

@@ -6,7 +6,7 @@ using System.IO;
 using System.Security.Cryptography;
 using VeeamTestTask.Contracts;
 using VeeamTestTask.Implementation;
-using VeeamTestTask.Implementation.MultiThread;
+using VeeamTestTask.Implementation.MultiThread2ndAttempt;
 using VeeamTestTask.Implementation.SingleThread;
 
 namespace VeeamTestTask.CLI
@@ -54,7 +54,6 @@ namespace VeeamTestTask.CLI
 
                     rootCommand.Handler = CommandHandler.Create<string, string, int, bool, string>(ValidateParamsAndExecute);
 
-                    // Parse the incoming args and invoke the handler
                     rootCommand.Invoke(args);
                 }
             }
@@ -83,7 +82,7 @@ namespace VeeamTestTask.CLI
                 return;
             }
 
-            if(inputFile.Length == 0)
+            if (inputFile.Length == 0)
             {
                 Console.WriteLine("Can not generate hash from empty file");
                 return;
@@ -113,7 +112,7 @@ namespace VeeamTestTask.CLI
             Console.WriteLine($"Number of blocks: {Math.Ceiling(inputFile.Length / (decimal)blockSize)}");
             Console.WriteLine();
 
-            IChunkHashCalculator hashCalculator = singleThread ? new SingleThreadChunkHashCalculator() : new MultiThreadChunkHashCalculator();
+            IChunkHashCalculator hashCalculator = singleThread ? new SingleThreadChunkHashCalculator() : new MultiThreadChunkHashCalculator2ndAttempt();
             using ThreadSafeResultWriter resultWriter = string.IsNullOrWhiteSpace(outputPath) ? new ConsoleResultWriter() : new FileResultWriter(outputPath);
 
             var startDateTime = DateTime.Now;
