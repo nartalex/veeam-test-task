@@ -1,4 +1,4 @@
-﻿namespace VeeamTestTask.Implementation.MultiThread3rdAttempt
+﻿namespace VeeamTestTask.Implementation.MultiThread
 {
     internal class ReadyToGetMemoryBlock
     {

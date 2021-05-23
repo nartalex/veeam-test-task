@@ -1,12 +1,13 @@
 ﻿using VeeamTestTask.Contracts;
+using VeeamTestTask.Implementation.MultiThread.Events;
 
-namespace VeeamTestTask.Implementation.MultiThread3rdAttempt
+namespace VeeamTestTask.Implementation.MultiThread
 {
-    internal class HashCalculationThreadParamsFor3rdAttempt
+    internal class ConsumerThreadParams
     {
-        public HashCalculationThreadParamsFor3rdAttempt(
-            MemoryBlocksManagerFor3rdAttempt<byte[]> releasedMemoryBlocks,
-            MemoryBlocksManagerFor3rdAttempt<ReadyToGetMemoryBlock> readyToGetMemoryBlocks,
+        public ConsumerThreadParams(
+            MemoryBlocksManager<byte[]> releasedMemoryBlocks,
+            MemoryBlocksManager<ReadyToGetMemoryBlock> readyToGetMemoryBlocks,
             string hashAlgorithmName,
             IBufferedResultWriter resultWriter,
             CalculationErrorEvent calculationErrorEvent)
@@ -18,9 +19,9 @@ namespace VeeamTestTask.Implementation.MultiThread3rdAttempt
             CalculationErrorEvent = calculationErrorEvent;
         }
 
-        public MemoryBlocksManagerFor3rdAttempt<byte[]> ReleasedMemoryBlocks { get; }
+        public MemoryBlocksManager<byte[]> ReleasedMemoryBlocks { get; }
 
-        public MemoryBlocksManagerFor3rdAttempt<ReadyToGetMemoryBlock> ReadyToGetMemoryBlocks { get; }
+        public MemoryBlocksManager<ReadyToGetMemoryBlock> ReadyToGetMemoryBlocks { get; }
 
         public string HashAlgorithmName { get; }
 

@@ -3,24 +3,24 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Threading;
 
-namespace VeeamTestTask.Implementation.MultiThread3rdAttempt
+namespace VeeamTestTask.Implementation.MultiThread
 {
-    internal class ConsumerThreadFor3rdAttempt
+    internal class ConsumerThread
     {
         private readonly Thread _currentThread;
         private readonly HashAlgorithm _hashAlgorithm;
-        private readonly HashCalculationThreadParamsFor3rdAttempt _params;
+        private readonly ConsumerThreadParams _params;
         private bool _fileHasEnded = false;
         private bool _calculationErrorOccured = false;
 
-        public ConsumerThreadFor3rdAttempt(HashCalculationThreadParamsFor3rdAttempt param)
+        public ConsumerThread(ConsumerThreadParams param)
         {
             _params = param;
             _hashAlgorithm = HashAlgorithm.Create(param.HashAlgorithmName);
             _currentThread = new Thread(new ThreadStart(DoWork));
 
             Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} is created");
-            ThreadCounterFor3rdAttempt.Increment();
+            ThreadCounter.Increment();
             _currentThread.Start();
         }
 
@@ -54,14 +54,14 @@ namespace VeeamTestTask.Implementation.MultiThread3rdAttempt
 
                     _params.ResultWriter.Write(currentChunk.ChunkIndex, hashBytes);
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     _calculationErrorOccured = true;
                     _params.CalculationErrorEvent.Fire(e);
                 }
             }
 
-            ThreadCounterFor3rdAttempt.Decrement();
+            ThreadCounter.Decrement();
             _hashAlgorithm.Dispose();
         }
 

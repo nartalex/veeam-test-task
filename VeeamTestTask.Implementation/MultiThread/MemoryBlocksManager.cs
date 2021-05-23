@@ -1,16 +1,16 @@
 ﻿using System.Collections.Generic;
 using System.Threading;
 
-namespace VeeamTestTask.Implementation.MultiThread3rdAttempt
+namespace VeeamTestTask.Implementation.MultiThread
 {
-    public class MemoryBlocksManagerFor3rdAttempt<T>
+    public class MemoryBlocksManager<T>
     {
         private readonly Queue<T> _memoryBlocks;
         private readonly ManualResetEventSlim _elementAvailabilityEvent;
         private readonly object _lockObject = new();
         private bool _fileHasEnded = false;
 
-        public MemoryBlocksManagerFor3rdAttempt(int capacity, ManualResetEventSlim elementAvailabilityEvent)
+        public MemoryBlocksManager(int capacity, ManualResetEventSlim elementAvailabilityEvent)
         {
             _memoryBlocks = new Queue<T>(capacity);
             _elementAvailabilityEvent = elementAvailabilityEvent;

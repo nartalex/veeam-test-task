@@ -3,8 +3,6 @@ using BenchmarkDotNet.Running;
 using System;
 using System.IO;
 using VeeamTestTask.Implementation.MultiThread;
-using VeeamTestTask.Implementation.MultiThread2ndAttempt;
-using VeeamTestTask.Implementation.MultiThread3rdAttempt;
 using VeeamTestTask.Implementation.SingleThread;
 
 namespace VeeamTestTask.Benchmark
@@ -65,18 +63,14 @@ namespace VeeamTestTask.Benchmark
         private Stream _fileStream;
         private VoidResultWriter _voidResultWriter;
         private SingleThreadChunkHashCalculator _singleThreadCalculator;
-        private MultiThreadChunkHashCalculator _multiThreadCalculator1st;
-        private MultiThreadChunkHashCalculator2ndAttempt _multiThreadCalculator2nd;
-        private ProducerThreadFor3rdAttempt _multiThreadCalculator3rd;
+        private MultiThreadChunkHashCalculator _multiThreadCalculator;
 
         [GlobalSetup]
         public void GlobalSetup()
         {
             _fileStream = new MemoryStream();
             _singleThreadCalculator = new();
-            _multiThreadCalculator1st = new();
-            _multiThreadCalculator2nd = new();
-            _multiThreadCalculator3rd = new();
+            _multiThreadCalculator = new();
 
             using var fileStream = new FileStream(InputFilePath, FileMode.Open, FileAccess.Read);
             fileStream.CopyTo(_fileStream);
@@ -95,22 +89,10 @@ namespace VeeamTestTask.Benchmark
             _singleThreadCalculator.SplitFileAndCalculateHashes(_fileStream, BlockSize, _hashAlgorithmName, _voidResultWriter);
         }
 
-        //[Benchmark]
-        public void MulriThreadImpl1st()
-        {
-            _multiThreadCalculator1st.SplitFileAndCalculateHashes(_fileStream, BlockSize, _hashAlgorithmName, _voidResultWriter);
-        }
-
-        //[Benchmark]
-        public void MulriThreadImpl2nd()
-        {
-            _multiThreadCalculator2nd.SplitFileAndCalculateHashes(_fileStream, BlockSize, _hashAlgorithmName, _voidResultWriter);
-        }
-
         [Benchmark]
-        public void MulriThreadImpl3rd()
+        public void MultiThreadImpl1st()
         {
-            _multiThreadCalculator3rd.SplitFileAndCalculateHashes(_fileStream, BlockSize, _hashAlgorithmName, _voidResultWriter);
+            _multiThreadCalculator.SplitFileAndCalculateHashes(_fileStream, BlockSize, _hashAlgorithmName, _voidResultWriter);
         }
 
         [IterationCleanup]

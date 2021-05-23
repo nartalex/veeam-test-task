@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace VeeamTestTask.Implementation.MultiThread3rdAttempt
+namespace VeeamTestTask.Implementation.MultiThread.Events
 {
     internal class CalculationErrorEvent
     {

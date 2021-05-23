@@ -1,19 +1,18 @@
-﻿using System;
+﻿using System.Diagnostics;
 using System.Threading;
 
 namespace VeeamTestTask.Implementation.MultiThread
 {
-    /// <summary>
-    /// Счетчик активных потоков
-    /// </summary>
     internal static class ThreadCounter
     {
-        private static int _counter = 0;
+        private static int _activeThreadsNumber;
+        private static AutoResetEvent _allThreadsAreCompletedEvent;
+        private static readonly object _lockObject = new();
 
-        /// <summary>
-        /// Ограничение количества потоков на алгоритм расчета хэша
-        /// </summary>
-        public static int MaxThreadNumber => Environment.ProcessorCount;
+        public static void Initialize(AutoResetEvent allThreadsAreCompletedEvent)
+        {
+            _allThreadsAreCompletedEvent = allThreadsAreCompletedEvent;
+        }
 
         /// <summary>
         /// Увеличить счетчик активных потоков
@@ -21,7 +20,7 @@ namespace VeeamTestTask.Implementation.MultiThread
         /// </summary>
         public static void Increment()
         {
-            Interlocked.Increment(ref _counter);
+            Interlocked.Increment(ref _activeThreadsNumber);
         }
 
         /// <summary>
@@ -30,28 +29,15 @@ namespace VeeamTestTask.Implementation.MultiThread
         /// </summary>
         public static void Decrement()
         {
-            Interlocked.Decrement(ref _counter);
-        }
-
-        /// <summary>
-        /// Ожидание освобождения потоков, если их количество превысило количество логических ядер
-        /// </summary>
-        public static void WaitUntilThreadsAreAvailable()
-        {
-            while (_counter >= MaxThreadNumber)
+            lock (_lockObject)
             {
-                Thread.Sleep(100);
-            }
-        }
+                Interlocked.Decrement(ref _activeThreadsNumber);
 
-        /// <summary>
-        /// Ожидание завершения всех потоков и очистки буфера
-        /// </summary>
-        public static void WaitUntilAllWorkIsDone()
-        {
-            while (_counter != 0)
-            {
-                Thread.Sleep(100);
+                if (_activeThreadsNumber == 0)
+                {
+                    Debug.WriteLine("All threads are completed");
+                    _allThreadsAreCompletedEvent?.Set();
+                }
             }
         }
     }

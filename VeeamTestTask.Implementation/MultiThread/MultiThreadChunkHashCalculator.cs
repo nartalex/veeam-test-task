@@ -1,22 +1,24 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
-using System.Security.Cryptography;
+using System.Runtime.InteropServices;
 using System.Threading;
 using VeeamTestTask.Contracts;
+using VeeamTestTask.Implementation.MultiThread.Events;
 
 namespace VeeamTestTask.Implementation.MultiThread
 {
     public class MultiThreadChunkHashCalculator : IChunkHashCalculator
     {
-        /// <inheritdoc/>
+        private bool _calculationErrorOccuredInConsumerThread = false;
+        private Exception _calculationExceptionFromConsumerThread = null;
+
         public void SplitFileAndCalculateHashes(string path, int blockSize, string hashAlgorithmName, IBufferedResultWriter resultWriter)
         {
             using var fileStream = File.OpenRead(path);
             SplitFileAndCalculateHashes(fileStream, blockSize, hashAlgorithmName, resultWriter);
         }
 
-        /// <inheritdoc/>
         public void SplitFileAndCalculateHashes(Stream fileStream, int blockSize, string hashAlgorithmName, IBufferedResultWriter resultWriter)
         {
             // Это позволяет нам не создавать слишком большой массив буффера,
@@ -28,69 +30,170 @@ namespace VeeamTestTask.Implementation.MultiThread
                 blockSize = (int)bytesLeft;
             }
 
-            byte[] buffer = new byte[blockSize];
-            var chunkIndex = 1;
-            var numberOfBytes = 0;
-            var parameterizedThreadStart = new ParameterizedThreadStart(ComputeHashDelegate);
-
-            while ((numberOfBytes = fileStream.Read(buffer, 0, blockSize)) != 0)
+            // Расчитываем, сколько мы можем создать блоков в памяти
+            // Если вдруг программа запущена не на Windows, ограничимся количеством блоков, равным количеству ядер
+            int amountOfBlocksAllowedInMemory = Environment.ProcessorCount;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                if (blockSize > numberOfBytes)
+                using var ramCounter = new PerformanceCounter("Memory", "Available bytes");
+                var availableMemory = Convert.ToUInt64(ramCounter?.NextValue());
+                amountOfBlocksAllowedInMemory = (int)Math.Floor(availableMemory / (float)blockSize * 0.8);
+
+                // Если можно создать огромное количество блоков, нам они не понадобятся
+                if (amountOfBlocksAllowedInMemory > Environment.ProcessorCount)
                 {
-                    buffer = buffer[0..numberOfBytes];
+                    amountOfBlocksAllowedInMemory = Environment.ProcessorCount;
                 }
-
-                new Thread(parameterizedThreadStart).Start(new HashCalculationThreadParams(chunkIndex, buffer, hashAlgorithmName, resultWriter));
-                ThreadCounter.Increment();
-                ThreadCounter.WaitUntilThreadsAreAvailable();
-
-                Debug.WriteLine($"Starting thread with chunk index {chunkIndex}. Bytes left: {fileStream.Length - fileStream.Position}");
-
-                // Это позволяет нам не создавать слишком большой массив буффера,
-                // если последний блок меньше размеров блока
-                bytesLeft = fileStream.Length - fileStream.Position;
-                if (bytesLeft < blockSize)
-                {
-                    blockSize = (int)bytesLeft;
-                }
-
-                chunkIndex++;
-
-                // Делая здесь новый массив, мы заменяем ссылку buffer на новую, и следующий блок
-                // будет писаться уже в новый массив, тогда как старая ссылка записана в HashCalculationThreadParams.
-                // Это позволяет нам не копировать массив, уменьшая трафик памяти
-                buffer = new byte[blockSize];
             }
 
-            // Так как есть команда только на старт потоков, мы не можем отследить их завершение без костылей
-            // Этот метод ждет, пока выполнятся все потоки и очистится буфер вывода
-            // Иначе процесс завершится без завершения потоков
-            ThreadCounter.WaitUntilAllWorkIsDone();
-        }
+            var allThreadsAreCompletedEvent = new AutoResetEvent(false);
+            var fileHasEndedEvent = new FileHasEndedEvent();
+            var calculationErrorEvent = new CalculationErrorEvent();
+            ThreadCounter.Initialize(allThreadsAreCompletedEvent);
 
-        /// <summary>
-        /// Действие, которое будет выполнено в потоке
-        /// </summary>
-        /// <param name="param">Объект класса HashCalculationThreadParams, который параметризует расчет хэша</param>
-        public static void ComputeHashDelegate(object param)
-        {
-            var hashCalculationThreadParams = (HashCalculationThreadParams)param;
+            // Алгоритм работает на основе двух очередей: readyToGetMemoryBlocks (доступные для хэширования) releasedMemoryBlocks (уже прохешированные)
+
+            var memoryBlockIsReleasedEvent = new ManualResetEventSlim(true);
+            var releasedMemoryBlocks = new MemoryBlocksManager<byte[]>(amountOfBlocksAllowedInMemory, memoryBlockIsReleasedEvent);
+
+            var memoryBlockIsReadyToGetEvent = new ManualResetEventSlim(true);
+            var readyToGetMemoryBlocks = new MemoryBlocksManager<ReadyToGetMemoryBlock>(amountOfBlocksAllowedInMemory, memoryBlockIsReadyToGetEvent);
+            fileHasEndedEvent.OnFileHasEnded += readyToGetMemoryBlocks.OnFileHasEnded;
+
+            var chunkIndex = 1;
+            var numberOfBytes = 1;
+            byte[] currentBuffer;
 
             try
             {
-                // Объект алгоритма хэширования должен быть разный для каждого треда, иначе получим одинаковые хэши на выходе
-                using var hashAlgorithm = HashAlgorithm.Create(hashCalculationThreadParams.HashAlgorithmName);
+                for (; chunkIndex <= amountOfBlocksAllowedInMemory && !_calculationErrorOccuredInConsumerThread; chunkIndex++)
+                {
+                    currentBuffer = new byte[blockSize];
 
-                var hashBytes = hashAlgorithm.ComputeHash(hashCalculationThreadParams.BufferToHash);
+                    numberOfBytes = fileStream.Read(currentBuffer, 0, blockSize);
+                    if (numberOfBytes == 0)
+                    {
+                        WaitForThreadsAndCleanUp();
+                        return;
+                    }
 
-                hashCalculationThreadParams.ResultWriter.Write(hashCalculationThreadParams.ChunkIndex, hashBytes);
+                    if (blockSize > numberOfBytes)
+                    {
+                        currentBuffer = currentBuffer[0..numberOfBytes];
+                    }
+
+                    readyToGetMemoryBlocks.Enqueue(new ReadyToGetMemoryBlock(chunkIndex, currentBuffer));
+                    memoryBlockIsReadyToGetEvent.Set();
+
+                    var thread = new ConsumerThread(
+                                    new ConsumerThreadParams(
+                                        releasedMemoryBlocks: releasedMemoryBlocks,
+                                        readyToGetMemoryBlocks: readyToGetMemoryBlocks,
+                                        hashAlgorithmName: hashAlgorithmName,
+                                        resultWriter: resultWriter,
+                                        calculationErrorEvent: calculationErrorEvent
+                                 ));
+
+                    fileHasEndedEvent.OnFileHasEnded += thread.OnFileHasEnded;
+                    calculationErrorEvent.OnCalculationError += thread.OnCalculationError;
+                }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
-                Console.WriteLine($"\n{e}");
+                ForceQuitAndOutputException(e);
             }
 
-            ThreadCounter.Decrement();
+            if (_calculationErrorOccuredInConsumerThread)
+            {
+                ForceQuitAndOutputExceptionFromConsumerThread();
+            }
+
+            try
+            {
+                while (!_calculationErrorOccuredInConsumerThread)
+                {
+                    Debug.WriteLine("Producer thread is trying to get released memory block");
+                    if (!releasedMemoryBlocks.TryDequeue(out currentBuffer))
+                    {
+                        Debug.WriteLine("Producer thread got nothing");
+                        continue;
+                    }
+
+                    Debug.WriteLine("Producer thread got free memory block");
+
+                    numberOfBytes = fileStream.Read(currentBuffer, 0, blockSize);
+                    if (numberOfBytes == 0)
+                    {
+                        WaitForThreadsAndCleanUp();
+                        return;
+                    }
+
+                    if (blockSize > numberOfBytes)
+                    {
+                        currentBuffer = currentBuffer[0..numberOfBytes];
+                    }
+
+                    Debug.WriteLine($"Producer thread is enqueueing chunk #{chunkIndex}");
+                    readyToGetMemoryBlocks.Enqueue(new ReadyToGetMemoryBlock(chunkIndex, currentBuffer));
+                    memoryBlockIsReadyToGetEvent.Set();
+
+                    chunkIndex++;
+                }
+            }
+            catch (Exception e)
+            {
+                ForceQuitAndOutputException(e);
+            }
+
+            if (_calculationErrorOccuredInConsumerThread)
+            {
+                ForceQuitAndOutputExceptionFromConsumerThread();
+            }
+
+            return;
+
+            /// Успешное завершение алгоритма
+            void WaitForThreadsAndCleanUp()
+            {
+                fileHasEndedEvent.Fire();
+                memoryBlockIsReadyToGetEvent.Set();         // Заставляем треды посмотреть в очередь еще раз
+
+                allThreadsAreCompletedEvent.WaitOne();
+                var _ = resultWriter.HasMessagesInBuffer;
+
+                DisposeEverything();
+            }
+
+            /// Аварийное завершение алгоритма из-за исключения, которое возникло в консьюмере
+            void ForceQuitAndOutputExceptionFromConsumerThread()
+            {
+                allThreadsAreCompletedEvent.WaitOne();
+                DisposeEverything();
+
+                Console.WriteLine(_calculationExceptionFromConsumerThread);
+            }
+
+            /// Аварийное завершение алгоритма из-за исключения, которое возникло в этом потоке
+            void ForceQuitAndOutputException(Exception e)
+            {
+                allThreadsAreCompletedEvent.WaitOne();
+                DisposeEverything();
+
+                Console.WriteLine(e);
+            }
+
+            void DisposeEverything()
+            {
+                memoryBlockIsReleasedEvent.Dispose();
+                memoryBlockIsReadyToGetEvent.Dispose();
+                allThreadsAreCompletedEvent.Dispose();
+            }
+        }
+
+        public void OnCalculationError(Exception e)
+        {
+            _calculationExceptionFromConsumerThread = e;
+            _calculationErrorOccuredInConsumerThread = true;
         }
     }
 }

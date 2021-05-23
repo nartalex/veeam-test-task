@@ -6,8 +6,7 @@ using System.IO;
 using System.Security.Cryptography;
 using VeeamTestTask.Contracts;
 using VeeamTestTask.Implementation;
-using VeeamTestTask.Implementation.MultiThread2ndAttempt;
-using VeeamTestTask.Implementation.MultiThread3rdAttempt;
+using VeeamTestTask.Implementation.MultiThread;
 using VeeamTestTask.Implementation.SingleThread;
 
 namespace VeeamTestTask.CLI
@@ -115,7 +114,7 @@ namespace VeeamTestTask.CLI
             Console.WriteLine($"Number of blocks: {Math.Ceiling(inputFile.Length / (decimal)blockSize)}");
             Console.WriteLine();
 
-            IChunkHashCalculator hashCalculator = singleThread ? new SingleThreadChunkHashCalculator() : new ProducerThreadFor3rdAttempt();
+            IChunkHashCalculator hashCalculator = singleThread ? new SingleThreadChunkHashCalculator() : new MultiThreadChunkHashCalculator();
             using ThreadSafeResultWriter resultWriter = string.IsNullOrWhiteSpace(outputPath) ? new ConsoleResultWriter() : new FileResultWriter(outputPath);
 
             var startDateTime = DateTime.Now;
