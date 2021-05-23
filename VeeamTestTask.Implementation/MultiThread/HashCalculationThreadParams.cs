@@ -4,12 +4,12 @@ namespace VeeamTestTask.Implementation.MultiThread
 {
     internal class HashCalculationThreadParams
     {
-        public HashCalculationThreadParams(int chunkIndex, byte[] bufferToHash, string hashAlgorithmName, IChunkHashCalculator.ReturnResultDelegate threadCallback)
+        public HashCalculationThreadParams(int chunkIndex, byte[] bufferToHash, string hashAlgorithmName, IBufferedResultWriter resultWriter)
         {
             ChunkIndex = chunkIndex;
             BufferToHash = bufferToHash;
             HashAlgorithmName = hashAlgorithmName;
-            ThreadCallback = threadCallback;
+            ResultWriter = resultWriter;
         }
 
         public int ChunkIndex { get; set; }
@@ -18,6 +18,6 @@ namespace VeeamTestTask.Implementation.MultiThread
 
         public string HashAlgorithmName { get; set; }
 
-        public IChunkHashCalculator.ReturnResultDelegate ThreadCallback { get; set; }
+        public IBufferedResultWriter ResultWriter { get; set; }
     }
 }

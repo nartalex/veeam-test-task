@@ -1,18 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace VeeamTestTask.Contracts
 {
-    public abstract class ThreadSafeResultWriter : IDisposable
+    public abstract class ThreadSafeResultWriter : IBufferedResultWriter, IDisposable
     {
         /// <summary>
         /// Буфер сообщений, сделан для вывода хэшей в строгой последовательности
         /// </summary>
-        private static Dictionary<int, byte[]> _outputBuffer;
-        private static readonly object _creationLock = new();
-        private static readonly object _bufferLock = new();
-        private static int _lastChunkIndex = 0;
+        private Dictionary<int, byte[]> _outputBuffer;
+        private readonly object _creationLock = new();
+        private readonly object _bufferLock = new();
+        private int _lastChunkIndex = 0;
+        private bool _isAborted = false;
 
         protected ThreadSafeResultWriter()
         {
@@ -21,7 +21,7 @@ namespace VeeamTestTask.Contracts
         /// <summary>
         /// Thread-safe singleton
         /// </summary>
-        private static Dictionary<int, byte[]> Buffer
+        private Dictionary<int, byte[]> Buffer
         {
             get
             {
@@ -44,7 +44,7 @@ namespace VeeamTestTask.Contracts
         /// <summary>
         /// Флаг, показывающий наличие сообщений в буфере
         /// </summary>
-        public static bool HasMessagesInBuffer
+        public bool HasMessagesInBuffer
         {
             get
             {
@@ -52,6 +52,16 @@ namespace VeeamTestTask.Contracts
                 {
                     return Buffer.Count > 0;
                 }
+            }
+        }
+
+        public void AbortOutput()
+        {
+            _isAborted = true;
+
+            lock (_bufferLock)
+            {
+                Buffer.Clear();
             }
         }
 
@@ -66,8 +76,13 @@ namespace VeeamTestTask.Contracts
         /// </remarks>
         /// <param name="chunkIndex"></param>
         /// <param name="hashBytes"></param>
-        public void WriteToBuffer(int chunkIndex, byte[] hashBytes)
+        public void Write(int chunkIndex, byte[] hashBytes)
         {
+            if (_isAborted)
+            {
+                return;
+            }
+
             // Если мы видим, что пришел следующий по очереди блок, мы можем обойти буфер и вывести его сразу
             if (chunkIndex == _lastChunkIndex + 1)
             {
@@ -103,6 +118,8 @@ namespace VeeamTestTask.Contracts
 
         public virtual void Dispose()
         {
+            _outputBuffer.Clear();
+            _lastChunkIndex = 0;
         }
     }
 }

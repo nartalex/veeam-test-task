@@ -8,14 +8,14 @@ namespace VeeamTestTask.Implementation.SingleThread
     public class SingleThreadChunkHashCalculator : IChunkHashCalculator
     {
         /// <inheritdoc/>
-        public void SplitFileAndCalculateHashes(string path, int blockSize, string hashAlgorithmName, IChunkHashCalculator.ReturnResultDelegate callback)
+        public void SplitFileAndCalculateHashes(string path, int blockSize, string hashAlgorithmName, IBufferedResultWriter resultWriter)
         {
             using var fileStream = File.OpenRead(path);
-            SplitFileAndCalculateHashes(fileStream, blockSize, hashAlgorithmName, callback);
+            SplitFileAndCalculateHashes(fileStream, blockSize, hashAlgorithmName, resultWriter);
         }
 
         /// <inheritdoc/>
-        public void SplitFileAndCalculateHashes(Stream fileStream, int blockSize, string hashAlgorithmName, IChunkHashCalculator.ReturnResultDelegate callback)
+        public void SplitFileAndCalculateHashes(Stream fileStream, int blockSize, string hashAlgorithmName, IBufferedResultWriter resultWriter)
         {
             // Это позволяет нам не создавать слишком большой массив буффера,
             // если файл сам по себе меньше размера блока
@@ -41,7 +41,7 @@ namespace VeeamTestTask.Implementation.SingleThread
                 }
 
                 var hashBytes = hashAlgorithm.ComputeHash(buffer);
-                callback(chunkIndex++, hashBytes);
+                resultWriter.Write(chunkIndex++, hashBytes);
             }
         }
     }

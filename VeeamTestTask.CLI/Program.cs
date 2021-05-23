@@ -120,7 +120,7 @@ namespace VeeamTestTask.CLI
 
             var startDateTime = DateTime.Now;
 
-            hashCalculator.SplitFileAndCalculateHashes(inputPath, blockSize, hashAlgorithmName, resultWriter.WriteToBuffer);
+            hashCalculator.SplitFileAndCalculateHashes(inputPath, blockSize, hashAlgorithmName, resultWriter);
 
             var finishDateTime = DateTime.Now;
 

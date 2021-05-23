@@ -11,6 +11,7 @@ namespace VeeamTestTask.Implementation.MultiThread3rdAttempt
         private readonly HashAlgorithm _hashAlgorithm;
         private readonly HashCalculationThreadParamsFor3rdAttempt _params;
         private bool _fileHasEnded = false;
+        private bool _calculationErrorOccured = false;
 
         public ConsumerThreadFor3rdAttempt(HashCalculationThreadParamsFor3rdAttempt param)
         {
@@ -25,48 +26,39 @@ namespace VeeamTestTask.Implementation.MultiThread3rdAttempt
 
         public void DoWork()
         {
-            while (true)
+            while (!_calculationErrorOccured)
             {
-                Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} is trying to get memory block");
-
-                //ReadyToGetMemoryBlock currentChunk;
-
-                //if (_fileHasEnded && !_params.ReadyToGetMemoryBlocks.TryDequeue(out currentChunk))
-                //{
-                //    Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} is shutting down");
-                //    break;
-                //}
-                //else
-                //{
-                //    _params.MemoryBlockIsReadyToGetEvent.WaitOne();
-                //    if (!_params.ReadyToGetMemoryBlocks.TryDequeueAndWatchForNextBlock(out currentChunk, _params.MemoryBlockIsReadyToGetEvent))
-                //    {
-                //        Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} got nothing");
-                //        continue;
-                //    }
-                //}
-
-                if (!_params.ReadyToGetMemoryBlocks.TryDequeue(out var currentChunk))
+                try
                 {
-                    if (_fileHasEnded)
+                    Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} is trying to get memory block");
+
+                    if (!_params.ReadyToGetMemoryBlocks.TryDequeue(out var currentChunk))
                     {
-                        Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} is shutting down");
-                        break;
+                        if (_fileHasEnded)
+                        {
+                            Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} is shutting down");
+                            break;
+                        }
+                        else
+                        {
+                            Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} got nothing");
+                            continue;
+                        }
                     }
-                    else
-                    {
-                        Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} got nothing");
-                        continue;
-                    }
+
+                    Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} got chunk #{currentChunk.ChunkIndex}");
+
+                    var hashBytes = _hashAlgorithm.ComputeHash(currentChunk.MemoryBlock);
+
+                    _params.ReleasedMemoryBlocks.Enqueue(currentChunk.MemoryBlock);
+
+                    _params.ResultWriter.Write(currentChunk.ChunkIndex, hashBytes);
                 }
-
-                Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} got chunk #{currentChunk.ChunkIndex}");
-
-                var hashBytes = _hashAlgorithm.ComputeHash(currentChunk.MemoryBlock);
-
-                _params.ReleasedMemoryBlocks.Enqueue(currentChunk.MemoryBlock);
-
-                _params.ThreadCallback(currentChunk.ChunkIndex, hashBytes);
+                catch(Exception e)
+                {
+                    _calculationErrorOccured = true;
+                    _params.CalculationErrorEvent.Fire(e);
+                }
             }
 
             ThreadCounterFor3rdAttempt.Decrement();
@@ -78,6 +70,13 @@ namespace VeeamTestTask.Implementation.MultiThread3rdAttempt
             Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} has recieved message about file ending");
 
             _fileHasEnded = true;
+        }
+
+        public void OnCalculationError(Exception e)
+        {
+            Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} has recieved message about calculation error");
+
+            _calculationErrorOccured = true;
         }
     }
 }

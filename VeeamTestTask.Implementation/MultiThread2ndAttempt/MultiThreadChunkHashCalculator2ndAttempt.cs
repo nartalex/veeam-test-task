@@ -15,13 +15,13 @@ namespace VeeamTestTask.Implementation.MultiThread2ndAttempt
     // Это позволяет нам не создавать для кажого потока новый буфер и не тратиться на GC
     public class MultiThreadChunkHashCalculator2ndAttempt : IChunkHashCalculator
     {
-        public void SplitFileAndCalculateHashes(string path, int blockSize, string hashAlgorithmName, IChunkHashCalculator.ReturnResultDelegate callback)
+        public void SplitFileAndCalculateHashes(string path, int blockSize, string hashAlgorithmName, IBufferedResultWriter resultWriter)
         {
             using var fileStream = File.OpenRead(path);
-            SplitFileAndCalculateHashes(fileStream, blockSize, hashAlgorithmName, callback);
+            SplitFileAndCalculateHashes(fileStream, blockSize, hashAlgorithmName, resultWriter);
         }
 
-        public void SplitFileAndCalculateHashes(Stream fileStream, int blockSize, string hashAlgorithmName, IChunkHashCalculator.ReturnResultDelegate callback)
+        public void SplitFileAndCalculateHashes(Stream fileStream, int blockSize, string hashAlgorithmName, IBufferedResultWriter resultWriter)
         {
             // Это позволяет нам не создавать слишком большой массив буффера,
             // если файл сам по себе меньше размера блока
@@ -91,7 +91,7 @@ namespace VeeamTestTask.Implementation.MultiThread2ndAttempt
                         chunkIndex: chunkIndex,
                         bufferToHash: currentBuffer,
                         hashAlgorithmName: hashAlgorithmName,
-                        threadCallback: callback
+                        resultWriter: resultWriter
                     ));
 
                 chunkIndex++;
@@ -115,7 +115,7 @@ namespace VeeamTestTask.Implementation.MultiThread2ndAttempt
 
                 MemoryBlocksManager.ReleaseBlock(hashCalculationThreadParams.MemoryBlockIndex);
 
-                hashCalculationThreadParams.ThreadCallback(hashCalculationThreadParams.ChunkIndex, hashBytes);
+                hashCalculationThreadParams.ResultWriter.Write(hashCalculationThreadParams.ChunkIndex, hashBytes);
             }
             catch (Exception e)
             {

@@ -10,14 +10,14 @@ namespace VeeamTestTask.Implementation.MultiThread
     public class MultiThreadChunkHashCalculator : IChunkHashCalculator
     {
         /// <inheritdoc/>
-        public void SplitFileAndCalculateHashes(string path, int blockSize, string hashAlgorithmName, IChunkHashCalculator.ReturnResultDelegate callback)
+        public void SplitFileAndCalculateHashes(string path, int blockSize, string hashAlgorithmName, IBufferedResultWriter resultWriter)
         {
             using var fileStream = File.OpenRead(path);
-            SplitFileAndCalculateHashes(fileStream, blockSize, hashAlgorithmName, callback);
+            SplitFileAndCalculateHashes(fileStream, blockSize, hashAlgorithmName, resultWriter);
         }
 
         /// <inheritdoc/>
-        public void SplitFileAndCalculateHashes(Stream fileStream, int blockSize, string hashAlgorithmName, IChunkHashCalculator.ReturnResultDelegate callback)
+        public void SplitFileAndCalculateHashes(Stream fileStream, int blockSize, string hashAlgorithmName, IBufferedResultWriter resultWriter)
         {
             // Это позволяет нам не создавать слишком большой массив буффера,
             // если файл сам по себе меньше размера блока
@@ -40,7 +40,7 @@ namespace VeeamTestTask.Implementation.MultiThread
                     buffer = buffer[0..numberOfBytes];
                 }
 
-                new Thread(parameterizedThreadStart).Start(new HashCalculationThreadParams(chunkIndex, buffer, hashAlgorithmName, callback));
+                new Thread(parameterizedThreadStart).Start(new HashCalculationThreadParams(chunkIndex, buffer, hashAlgorithmName, resultWriter));
                 ThreadCounter.Increment();
                 ThreadCounter.WaitUntilThreadsAreAvailable();
 
@@ -83,7 +83,7 @@ namespace VeeamTestTask.Implementation.MultiThread
 
                 var hashBytes = hashAlgorithm.ComputeHash(hashCalculationThreadParams.BufferToHash);
 
-                hashCalculationThreadParams.ThreadCallback(hashCalculationThreadParams.ChunkIndex, hashBytes);
+                hashCalculationThreadParams.ResultWriter.Write(hashCalculationThreadParams.ChunkIndex, hashBytes);
             }
             catch(Exception e)
             {

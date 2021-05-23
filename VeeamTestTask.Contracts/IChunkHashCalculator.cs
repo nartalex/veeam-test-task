@@ -19,7 +19,7 @@ namespace VeeamTestTask.Contracts
         /// <param name="blockSize">Размер блока в байтах</param>
         /// <param name="hashAlgorithmName">Название алгоритма хэширования</param>
         /// <param name="callback">Действие при завершении расчета хэша каждого блока</param>
-        void SplitFileAndCalculateHashes(string path, int blockSize, string hashAlgorithmName, ReturnResultDelegate callback);
+        void SplitFileAndCalculateHashes(string path, int blockSize, string hashAlgorithmName, IBufferedResultWriter resultWriter);
 
         /// <summary>
         /// Разделить файл и посчитать хэши блоков
@@ -28,6 +28,6 @@ namespace VeeamTestTask.Contracts
         /// <param name="blockSize">Размер блока в байтах</param>
         /// <param name="hashAlgorithmName">Название алгоритма хэширования</param>
         /// <param name="callback">Действие при завершении расчета хэша каждого блока</param>
-        void SplitFileAndCalculateHashes(Stream fileStream, int blockSize, string hashAlgorithmName, ReturnResultDelegate callback);
+        void SplitFileAndCalculateHashes(Stream fileStream, int blockSize, string hashAlgorithmName, IBufferedResultWriter resultWriter);
     }
 }

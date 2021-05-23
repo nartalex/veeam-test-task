@@ -6,8 +6,8 @@ namespace VeeamTestTask.Implementation
 {
     public class FileResultWriter : ThreadSafeResultWriter
     {
-        private static readonly object _fileLock = new();
-        private static Stream _outputStream;
+        private readonly object _fileLock = new();
+        private readonly Stream _outputStream;
 
         public FileResultWriter(string filepath)
         {
@@ -30,7 +30,7 @@ namespace VeeamTestTask.Implementation
             }
         }
 
-        private static void WriteToStream(string text)
+        private void WriteToStream(string text)
         {
             _outputStream.Write(Encoding.UTF8.GetBytes(text));
         }
@@ -38,6 +38,7 @@ namespace VeeamTestTask.Implementation
         public override void Dispose()
         {
             _outputStream.Dispose();
+            base.Dispose();
         }
     }
 }

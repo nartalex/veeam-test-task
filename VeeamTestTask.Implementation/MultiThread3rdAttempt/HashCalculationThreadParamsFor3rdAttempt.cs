@@ -1,5 +1,4 @@
-﻿using System.Threading;
-using VeeamTestTask.Contracts;
+﻿using VeeamTestTask.Contracts;
 
 namespace VeeamTestTask.Implementation.MultiThread3rdAttempt
 {
@@ -9,12 +8,14 @@ namespace VeeamTestTask.Implementation.MultiThread3rdAttempt
             MemoryBlocksManagerFor3rdAttempt<byte[]> releasedMemoryBlocks,
             MemoryBlocksManagerFor3rdAttempt<ReadyToGetMemoryBlock> readyToGetMemoryBlocks,
             string hashAlgorithmName,
-            IChunkHashCalculator.ReturnResultDelegate threadCallback)
+            IBufferedResultWriter resultWriter,
+            CalculationErrorEvent calculationErrorEvent)
         {
             ReleasedMemoryBlocks = releasedMemoryBlocks;
             ReadyToGetMemoryBlocks = readyToGetMemoryBlocks;
             HashAlgorithmName = hashAlgorithmName;
-            ThreadCallback = threadCallback;
+            ResultWriter = resultWriter;
+            CalculationErrorEvent = calculationErrorEvent;
         }
 
         public MemoryBlocksManagerFor3rdAttempt<byte[]> ReleasedMemoryBlocks { get; }
@@ -23,6 +24,8 @@ namespace VeeamTestTask.Implementation.MultiThread3rdAttempt
 
         public string HashAlgorithmName { get; }
 
-        public IChunkHashCalculator.ReturnResultDelegate ThreadCallback { get; }
+        public IBufferedResultWriter ResultWriter { get; }
+
+        public CalculationErrorEvent CalculationErrorEvent { get; set; }
     }
 }
