@@ -7,13 +7,14 @@ using System.Security.Cryptography;
 using VeeamTestTask.Contracts;
 using VeeamTestTask.Implementation;
 using VeeamTestTask.Implementation.MultiThread2ndAttempt;
+using VeeamTestTask.Implementation.MultiThread3rdAttempt;
 using VeeamTestTask.Implementation.SingleThread;
 
 namespace VeeamTestTask.CLI
 {
-    class Program
+    public static class Program
     {
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             try
             {
@@ -46,8 +47,8 @@ namespace VeeamTestTask.CLI
                             description: "Computes hash in single thread"),
                         new Option<string>(
                             alias: "--hash-algorithm-name",
-                            description: "Hash algorithm that will be used to calculate hash",
-                            defaultValue: "SHA256"),
+                            defaultValue: "SHA256",
+                            description: "Hash algorithm that will be used to calculate hash"),
                     };
 
                     rootCommand.Description = "Console App to chunk file and calculate its' hashes";
@@ -62,8 +63,10 @@ namespace VeeamTestTask.CLI
                 Console.WriteLine(e);
             }
 
+#if DEBUG
             Console.Write("Press Enter to continue: ");
             Console.ReadLine();
+#endif
         }
 
         public static void ValidateParamsAndExecute(string inputPath, string outputPath, int blockSize, bool singleThread, string hashAlgorithmName)
@@ -112,7 +115,7 @@ namespace VeeamTestTask.CLI
             Console.WriteLine($"Number of blocks: {Math.Ceiling(inputFile.Length / (decimal)blockSize)}");
             Console.WriteLine();
 
-            IChunkHashCalculator hashCalculator = singleThread ? new SingleThreadChunkHashCalculator() : new MultiThreadChunkHashCalculator2ndAttempt();
+            IChunkHashCalculator hashCalculator = singleThread ? new SingleThreadChunkHashCalculator() : new ProducerThreadFor3rdAttempt();
             using ThreadSafeResultWriter resultWriter = string.IsNullOrWhiteSpace(outputPath) ? new ConsoleResultWriter() : new FileResultWriter(outputPath);
 
             var startDateTime = DateTime.Now;
