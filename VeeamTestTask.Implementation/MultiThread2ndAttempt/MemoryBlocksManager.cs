@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 
 namespace VeeamTestTask.Implementation.MultiThread2ndAttempt
@@ -10,7 +9,7 @@ namespace VeeamTestTask.Implementation.MultiThread2ndAttempt
     internal static class MemoryBlocksManager
     {
         private static Dictionary<int, bool> _memoryBlocksAvailabiliryStorage;
-        private static object _lockObject = new();
+        private static readonly object _lockObject = new();
 
         public static void Initialize(int capacity)
         {
@@ -48,8 +47,6 @@ namespace VeeamTestTask.Implementation.MultiThread2ndAttempt
             {
                 _memoryBlocksAvailabiliryStorage[blockIndex] = true;
             }
-
-            Debug.WriteLine($"Block released: {blockIndex}");
         }
 
         /// <summary>

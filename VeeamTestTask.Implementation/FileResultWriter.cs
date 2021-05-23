@@ -6,7 +6,7 @@ namespace VeeamTestTask.Implementation
 {
     public class FileResultWriter : ThreadSafeResultWriter
     {
-        private static readonly object _fileLock = new object();
+        private static readonly object _fileLock = new();
         private static Stream _outputStream;
 
         public FileResultWriter(string filepath)

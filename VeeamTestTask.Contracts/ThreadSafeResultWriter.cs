@@ -9,10 +9,10 @@ namespace VeeamTestTask.Contracts
         /// <summary>
         /// Буфер сообщений, сделан для вывода хэшей в строгой последовательности
         /// </summary>
-        private static Dictionary<int, byte[]> outputBuffer = null;
-        private static readonly object creationLock = new object();
-        private static readonly object bufferLock = new object();
-        private static int lastChunkIndex = 0;
+        private static Dictionary<int, byte[]> _outputBuffer;
+        private static readonly object _creationLock = new();
+        private static readonly object _bufferLock = new();
+        private static int _lastChunkIndex = 0;
 
         protected ThreadSafeResultWriter()
         {
@@ -25,19 +25,19 @@ namespace VeeamTestTask.Contracts
         {
             get
             {
-                if (outputBuffer == null)
+                if (_outputBuffer == null)
                 {
-                    lock (creationLock)
+                    lock (_creationLock)
                     {
-                        if (outputBuffer == null)
+                        if (_outputBuffer == null)
                         {
                             // 16 элементов в буффере должно хватить для любого сценария поведения потоков
-                            outputBuffer = new(16);
+                            _outputBuffer = new(16);
                         }
                     }
                 }
 
-                return outputBuffer;
+                return _outputBuffer;
             }
         }
 
@@ -48,9 +48,9 @@ namespace VeeamTestTask.Contracts
         {
             get
             {
-                lock (bufferLock)
+                lock (_bufferLock)
                 {
-                    return outputBuffer.Any();
+                    return Buffer.Count > 0;
                 }
             }
         }
@@ -63,21 +63,21 @@ namespace VeeamTestTask.Contracts
         /// Если сообщения идут последовательно (например, при однопоточном режиме или слабой пропускной способности),
         /// они будут выводиться сразу. Если сообщения приходят в разнобой, неподходящие для вывода будут сохраняться в буфер,
         /// а последний выведенный индекс будет сохраняться. При выводе нужного сообщения, буфер будет просматриваться на наличие следующих сообщений по списку
-        /// </remarks>         
+        /// </remarks>
         /// <param name="chunkIndex"></param>
         /// <param name="hashBytes"></param>
         public void WriteToBuffer(int chunkIndex, byte[] hashBytes)
         {
             // Если мы видим, что пришел следующий по очереди блок, мы можем обойти буфер и вывести его сразу
-            if (chunkIndex == lastChunkIndex + 1)
+            if (chunkIndex == _lastChunkIndex + 1)
             {
                 WriteHashToOutput(chunkIndex, hashBytes);
-                lastChunkIndex = chunkIndex;
+                _lastChunkIndex = chunkIndex;
             }
             // Иначе - добавим в буфер и будем ждать подходящих сообщений
             else
             {
-                lock (bufferLock)
+                lock (_bufferLock)
                 {
                     Buffer.Add(chunkIndex, hashBytes);
                 }
@@ -88,16 +88,13 @@ namespace VeeamTestTask.Contracts
 
         private void CheckBufferForAvailableChunks()
         {
-            lock (bufferLock)
+            lock (_bufferLock)
             {
-                var chunkIndexToSearch = lastChunkIndex + 1;
-
-                while (Buffer.ContainsKey(chunkIndexToSearch))
+                for (var chunkIndexToSearch = _lastChunkIndex + 1; Buffer.ContainsKey(chunkIndexToSearch); chunkIndexToSearch++)
                 {
                     WriteHashToOutput(chunkIndexToSearch, Buffer[chunkIndexToSearch]);
                     Buffer.Remove(chunkIndexToSearch);
-                    lastChunkIndex++;
-                    chunkIndexToSearch++;
+                    _lastChunkIndex++;
                 }
             }
         }

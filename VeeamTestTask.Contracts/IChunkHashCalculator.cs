@@ -10,7 +10,7 @@ namespace VeeamTestTask.Contracts
         /// </summary>
         /// <param name="chunkIndex">Индекс блока файла</param>
         /// <param name="hashBytes">Хэш блока</param>
-        delegate void ReturnResultDelegate(int chunkIndex, byte[] hashBytes);
+        public delegate void ReturnResultDelegate(int chunkIndex, byte[] hashBytes);
 
         /// <summary>
         /// Разделить файл и посчитать хэши блоков
