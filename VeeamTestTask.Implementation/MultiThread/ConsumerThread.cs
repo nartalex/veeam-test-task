@@ -10,8 +10,6 @@ namespace VeeamTestTask.Implementation.MultiThread
         private readonly Thread _currentThread;
         private readonly HashAlgorithm _hashAlgorithm;
         private readonly ConsumerThreadParams _params;
-        private bool _fileHasEnded = false;
-        private bool _calculationErrorOccured = false;
 
         public ConsumerThread(ConsumerThreadParams param)
         {
@@ -26,19 +24,22 @@ namespace VeeamTestTask.Implementation.MultiThread
 
         public void DoWork()
         {
-            while (!_calculationErrorOccured)
+            try
             {
-                try
+                while (!_params.ExitByErrorEvent.IsSet)
                 {
                     Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} is trying to get memory block");
 
+                    // Получаем блок файла для хэширования
                     if (!_params.ReadyToGetMemoryBlocks.TryDequeue(out var currentChunk))
                     {
-                        if (_fileHasEnded)
+                        // Если мы не получили блок и получили сообщение об окончании файла - гасим поток
+                        if (_params.ExitByFileEndingEvent.IsSet)
                         {
                             Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} is shutting down");
                             break;
                         }
+                        // Если мы не получили блок и сообщения об окончании файла еще не было, то другие потоки опередили текущий
                         else
                         {
                             Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} got nothing");
@@ -50,33 +51,22 @@ namespace VeeamTestTask.Implementation.MultiThread
 
                     var hashBytes = _hashAlgorithm.ComputeHash(currentChunk.MemoryBlock);
 
+                    // Блок файла прохеширован, область памяти можно освобождать под следующий блок
                     _params.ReleasedMemoryBlocks.Enqueue(currentChunk.MemoryBlock);
 
                     _params.ResultWriter.Write(currentChunk.ChunkIndex, hashBytes);
                 }
-                catch (Exception e)
-                {
-                    _calculationErrorOccured = true;
-                    _params.CalculationErrorEvent.Fire(e);
-                }
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} caused exception");
+                Debug.WriteLine(e);
+                _params.NotifyProducerAboutError(e);
+                _params.ExitByErrorEvent.Set();
             }
 
             ThreadCounter.Decrement();
             _hashAlgorithm.Dispose();
-        }
-
-        public void OnFileHasEnded()
-        {
-            Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} has recieved message about file ending");
-
-            _fileHasEnded = true;
-        }
-
-        public void OnCalculationError(Exception e)
-        {
-            Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} has recieved message about calculation error");
-
-            _calculationErrorOccured = true;
         }
     }
 }

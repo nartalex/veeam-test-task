@@ -8,8 +8,8 @@
             MemoryBlock = memoryBlock;
         }
 
-        public int ChunkIndex { get; set; }
+        public int ChunkIndex { get; }
 
-        public byte[] MemoryBlock { get; set; }
+        public byte[] MemoryBlock { get; }
     }
 }

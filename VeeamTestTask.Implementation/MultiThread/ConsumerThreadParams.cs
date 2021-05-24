@@ -1,5 +1,6 @@
-﻿using VeeamTestTask.Contracts;
-using VeeamTestTask.Implementation.MultiThread.Events;
+﻿using System;
+using System.Threading;
+using VeeamTestTask.Contracts;
 
 namespace VeeamTestTask.Implementation.MultiThread
 {
@@ -10,13 +11,17 @@ namespace VeeamTestTask.Implementation.MultiThread
             MemoryBlocksManager<ReadyToGetMemoryBlock> readyToGetMemoryBlocks,
             string hashAlgorithmName,
             IBufferedResultWriter resultWriter,
-            CalculationErrorEvent calculationErrorEvent)
+            ManualResetEventSlim exitByFileEndingEvent,
+            ManualResetEventSlim exitByErrorEvent,
+            Action<Exception> errorNotifierMethod)
         {
             ReleasedMemoryBlocks = releasedMemoryBlocks;
             ReadyToGetMemoryBlocks = readyToGetMemoryBlocks;
             HashAlgorithmName = hashAlgorithmName;
             ResultWriter = resultWriter;
-            CalculationErrorEvent = calculationErrorEvent;
+            ExitByFileEndingEvent = exitByFileEndingEvent;
+            ExitByErrorEvent = exitByErrorEvent;
+            NotifyProducerAboutError = errorNotifierMethod;
         }
 
         public MemoryBlocksManager<byte[]> ReleasedMemoryBlocks { get; }
@@ -27,6 +32,10 @@ namespace VeeamTestTask.Implementation.MultiThread
 
         public IBufferedResultWriter ResultWriter { get; }
 
-        public CalculationErrorEvent CalculationErrorEvent { get; set; }
+        public ManualResetEventSlim ExitByFileEndingEvent { get; set; }
+
+        public ManualResetEventSlim ExitByErrorEvent { get; set; }
+
+        public Action<Exception> NotifyProducerAboutError { get; set; }
     }
 }
