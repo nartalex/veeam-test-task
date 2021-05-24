@@ -30,18 +30,18 @@ namespace VeeamTestTask.Implementation.MultiThread
             ThreadCounter.Initialize(allThreadsAreCompletedEvent);
 
             // Эти события будут доставлять информацию в другие потоки
-            var exitByFileEndingEvent = new ManualResetEventSlim(false);
-            var exitByErrorEvent = new ManualResetEventSlim(false);
+            var closeThreadsByFileEndingEvent = new ManualResetEventSlim(false);
+            var closeThreadsByErrorEvent = new ManualResetEventSlim(false);
 
             // Алгоритм работает на основе двух очередей: readyToGetMemoryBlocks (доступные для хэширования) и releasedMemoryBlocks (доступные для перезаписи)
             // Прочитанный блок файла записывается в уже созданный буфер, затем отправляется в очередь readyToGetMemoryBlocks.
             // Оттуда его подхватывает первый попавшийся consumer-поток, делает свои дела и затем ссылку на буфер отправляет в releasedMemoryBlocks, таким образом сообщая, что буфер доступен для следующего блока
             // Из этой очереди producer-поток достает свободный буфер, записывает в него блок файла и опять отправляет в очередь readyToGetMemoryBlocks
             var memoryBlockIsReleasedEvent = new ManualResetEventSlim(true);
-            var releasedMemoryBlocks = new MemoryBlocksManager<byte[]>(amountOfBlocks, memoryBlockIsReleasedEvent, exitByFileEndingEvent);
+            var releasedMemoryBlocks = new MemoryBlocksManager<byte[]>(amountOfBlocks, memoryBlockIsReleasedEvent);
 
             var memoryBlockIsReadyToGetEvent = new ManualResetEventSlim(true);
-            var readyToGetMemoryBlocks = new MemoryBlocksManager<ReadyToGetMemoryBlock>(amountOfBlocks, memoryBlockIsReadyToGetEvent, exitByFileEndingEvent);
+            var readyToGetMemoryBlocks = new MemoryBlocksManager<ReadyToGetMemoryBlock>(amountOfBlocks, memoryBlockIsReadyToGetEvent);
 
             var chunkIndex = 1;
             var numberOfBytes = 1;
@@ -51,7 +51,7 @@ namespace VeeamTestTask.Implementation.MultiThread
             {
                 // Первичное чтение файла, ограниченное количеством блоков amountOfBlocks
                 // Здесь мы создаем буферы, создаем потоки и уже начинаем хэшировать файл
-                for (; chunkIndex <= amountOfBlocks && !exitByErrorEvent.IsSet; chunkIndex++)
+                for (; chunkIndex <= amountOfBlocks && !closeThreadsByErrorEvent.IsSet; chunkIndex++)
                 {
                     currentBuffer = new byte[blockSize];
 
@@ -71,12 +71,13 @@ namespace VeeamTestTask.Implementation.MultiThread
 
                     var thread = new ConsumerThread(
                                     new ConsumerThreadParams(
+                                        threadName: $"Consumer thread {chunkIndex}",
                                         releasedMemoryBlocks: releasedMemoryBlocks,
                                         readyToGetMemoryBlocks: readyToGetMemoryBlocks,
                                         hashAlgorithmName: hashAlgorithmName,
                                         resultWriter: resultWriter,
-                                        exitByFileEndingEvent: exitByFileEndingEvent,
-                                        exitByErrorEvent: exitByErrorEvent,
+                                        exitByFileEndingEvent: closeThreadsByFileEndingEvent,
+                                        exitByErrorEvent: closeThreadsByErrorEvent,
                                         errorNotifierMethod: this.OnCalculationError
                                  ));
                 }
@@ -87,7 +88,7 @@ namespace VeeamTestTask.Implementation.MultiThread
                 return;
             }
 
-            if (exitByErrorEvent.IsSet)
+            if (closeThreadsByErrorEvent.IsSet)
             {
                 ForceExitCausedByConsumerThread();
                 return;
@@ -95,7 +96,7 @@ namespace VeeamTestTask.Implementation.MultiThread
 
             try
             {
-                while (!exitByErrorEvent.IsSet)
+                while (!closeThreadsByErrorEvent.IsSet)
                 {
                     // Ждем, пока будет доступен буфер для перезаписи
                     Debug.WriteLine("Producer thread is trying to get released memory block");
@@ -131,7 +132,7 @@ namespace VeeamTestTask.Implementation.MultiThread
                 return;
             }
 
-            if (exitByErrorEvent.IsSet)
+            if (closeThreadsByErrorEvent.IsSet)
             {
                 ForceExitCausedByConsumerThread();
                 return;
@@ -142,7 +143,9 @@ namespace VeeamTestTask.Implementation.MultiThread
             /// Успешное завершение алгоритма
             void SuccessfullExit()
             {
-                exitByFileEndingEvent.Set();
+                readyToGetMemoryBlocks.FileHasEnded();
+                releasedMemoryBlocks.FileHasEnded();
+                closeThreadsByFileEndingEvent.Set();
 
                 allThreadsAreCompletedEvent.WaitOne();
                 var shouldBeFalse = resultWriter.HasMessagesInBuffer;
@@ -175,7 +178,7 @@ namespace VeeamTestTask.Implementation.MultiThread
             void ForceExit()
             {
                 resultWriter.AbortOutput();
-                exitByErrorEvent.Set();
+                closeThreadsByErrorEvent.Set();
                 readyToGetMemoryBlocks.AbortExecution();
                 releasedMemoryBlocks.AbortExecution();
                 allThreadsAreCompletedEvent.WaitOne();
@@ -187,8 +190,8 @@ namespace VeeamTestTask.Implementation.MultiThread
                 memoryBlockIsReleasedEvent.Dispose();
                 memoryBlockIsReadyToGetEvent.Dispose();
                 allThreadsAreCompletedEvent.Dispose();
-                exitByFileEndingEvent.Dispose();
-                exitByErrorEvent.Dispose();
+                closeThreadsByFileEndingEvent.Dispose();
+                closeThreadsByErrorEvent.Dispose();
             }
         }
 

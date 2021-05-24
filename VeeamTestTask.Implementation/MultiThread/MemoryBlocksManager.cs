@@ -11,15 +11,14 @@ namespace VeeamTestTask.Implementation.MultiThread
     {
         private readonly Queue<T> _memoryBlocks;
         private readonly ManualResetEventSlim _elementAvailabilityEvent;
-        private readonly ManualResetEventSlim _fileHasEndedEvent;
         private readonly object _lockObject = new();
+        private bool _fileHasEnded = false;
         private bool _isAborted = false;
 
-        public MemoryBlocksManager(int capacity, ManualResetEventSlim elementAvailabilityEvent, ManualResetEventSlim fileHasEndedEvent)
+        public MemoryBlocksManager(int capacity, ManualResetEventSlim elementAvailabilityEvent)
         {
             _memoryBlocks = new Queue<T>(capacity);
             _elementAvailabilityEvent = elementAvailabilityEvent;
-            _fileHasEndedEvent = fileHasEndedEvent;
         }
 
         /// <summary>
@@ -74,13 +73,23 @@ namespace VeeamTestTask.Implementation.MultiThread
                 var isElementAvailable = _memoryBlocks.TryDequeue(out result);
 
                 // Сбрасываем доступность элементов если очередь уже пуста при условии, что файл еще читается
-                if (_memoryBlocks.Count == 0 && !_fileHasEndedEvent.IsSet)
+                if (_memoryBlocks.Count == 0 && !_fileHasEnded)
                 {
                     _elementAvailabilityEvent.Reset();
                 }
 
                 return isElementAvailable;
             }
+        }
+
+        public void FileHasEnded()
+        {
+            // Тут был дэдлок с вероятностью примерно 1 к 200
+            lock (_lockObject)
+            {
+                _fileHasEnded = true;
+            }
+            _elementAvailabilityEvent.Set();
         }
 
         public void AbortExecution()

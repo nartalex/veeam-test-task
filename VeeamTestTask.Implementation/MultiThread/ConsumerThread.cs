@@ -16,6 +16,7 @@ namespace VeeamTestTask.Implementation.MultiThread
             _params = param;
             _hashAlgorithm = HashAlgorithm.Create(param.HashAlgorithmName);
             _currentThread = new Thread(new ThreadStart(DoWork));
+            _currentThread.Name = param.ThreadName;
 
             Debug.WriteLine($"Consumer thread {_currentThread.ManagedThreadId} is created");
             ThreadCounter.Increment();

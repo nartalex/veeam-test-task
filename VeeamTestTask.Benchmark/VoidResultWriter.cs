@@ -2,9 +2,15 @@
 
 namespace VeeamTestTask.Benchmark
 {
-    public class VoidResultWriter : ThreadSafeResultWriter
+    public class VoidResultWriter : IBufferedResultWriter
     {
-        protected override void WriteHashToOutput(int chunkIndex, byte[] hashBytes)
+        public bool HasMessagesInBuffer => false;
+
+        public void AbortOutput()
+        {
+        }
+
+        public void Write(int chunkIndex, byte[] hashBytes)
         {
         }
     }

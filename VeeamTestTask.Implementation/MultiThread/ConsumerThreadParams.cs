@@ -7,6 +7,7 @@ namespace VeeamTestTask.Implementation.MultiThread
     internal class ConsumerThreadParams
     {
         public ConsumerThreadParams(
+            string threadName,
             MemoryBlocksManager<byte[]> releasedMemoryBlocks,
             MemoryBlocksManager<ReadyToGetMemoryBlock> readyToGetMemoryBlocks,
             string hashAlgorithmName,
@@ -15,6 +16,7 @@ namespace VeeamTestTask.Implementation.MultiThread
             ManualResetEventSlim exitByErrorEvent,
             Action<Exception> errorNotifierMethod)
         {
+            ThreadName = threadName;
             ReleasedMemoryBlocks = releasedMemoryBlocks;
             ReadyToGetMemoryBlocks = readyToGetMemoryBlocks;
             HashAlgorithmName = hashAlgorithmName;
@@ -23,6 +25,8 @@ namespace VeeamTestTask.Implementation.MultiThread
             ExitByErrorEvent = exitByErrorEvent;
             NotifyProducerAboutError = errorNotifierMethod;
         }
+
+        public string ThreadName { get; set; }
 
         public MemoryBlocksManager<byte[]> ReleasedMemoryBlocks { get; }
 
