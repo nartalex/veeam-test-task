@@ -38,10 +38,10 @@ namespace VeeamTestTask.Implementation.MultiThread
             // Оттуда его подхватывает первый попавшийся consumer-поток, делает свои дела и затем ссылку на буфер отправляет в releasedMemoryBlocks, таким образом сообщая, что буфер доступен для следующего блока
             // Из этой очереди producer-поток достает свободный буфер, записывает в него блок файла и опять отправляет в очередь readyToGetMemoryBlocks
             var memoryBlockIsReleasedEvent = new ManualResetEventSlim(true);
-            var releasedMemoryBlocks = new MemoryBlocksManager<byte[]>(amountOfBlocks, memoryBlockIsReleasedEvent);
+            var releasedMemoryBlocks = new MemoryBlocksManager<byte[]>(amountOfBlocks, memoryBlockIsReleasedEvent, closeThreadsByFileEndingEvent, closeThreadsByErrorEvent);
 
             var memoryBlockIsReadyToGetEvent = new ManualResetEventSlim(true);
-            var readyToGetMemoryBlocks = new MemoryBlocksManager<ReadyToGetMemoryBlock>(amountOfBlocks, memoryBlockIsReadyToGetEvent);
+            var readyToGetMemoryBlocks = new MemoryBlocksManager<ReadyToGetMemoryBlock>(amountOfBlocks, memoryBlockIsReadyToGetEvent, closeThreadsByFileEndingEvent, closeThreadsByErrorEvent);
 
             var chunkIndex = 1;
             var numberOfBytes = 1;
@@ -143,9 +143,8 @@ namespace VeeamTestTask.Implementation.MultiThread
             /// Успешное завершение алгоритма
             void SuccessfullExit()
             {
-                readyToGetMemoryBlocks.FileHasEnded();
-                releasedMemoryBlocks.FileHasEnded();
                 closeThreadsByFileEndingEvent.Set();
+                ReleaseMemoryEvents();
 
                 allThreadsAreCompletedEvent.WaitOne();
                 var shouldBeFalse = resultWriter.HasMessagesInBuffer;
@@ -179,10 +178,15 @@ namespace VeeamTestTask.Implementation.MultiThread
             {
                 resultWriter.AbortOutput();
                 closeThreadsByErrorEvent.Set();
-                readyToGetMemoryBlocks.AbortExecution();
-                releasedMemoryBlocks.AbortExecution();
+                ReleaseMemoryEvents();
                 allThreadsAreCompletedEvent.WaitOne();
                 DisposeEverything();
+            }
+
+            void ReleaseMemoryEvents()
+            {
+                memoryBlockIsReleasedEvent.Set();
+                memoryBlockIsReadyToGetEvent.Set();
             }
 
             void DisposeEverything()

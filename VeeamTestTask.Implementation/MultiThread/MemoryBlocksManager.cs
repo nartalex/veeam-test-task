@@ -6,19 +6,28 @@ namespace VeeamTestTask.Implementation.MultiThread
     /// <summary>
     /// Менеджер памяти, который синхронизирует работу потоков и занимается обработкой блоков памяти
     /// </summary>
-    /// <typeparam name="T"></typeparam>
+    /// <typeparam name="T">Тип данных, который будет представлен в блоках памяти</typeparam>
     public class MemoryBlocksManager<T>
     {
         private readonly Queue<T> _memoryBlocks;
         private readonly ManualResetEventSlim _elementAvailabilityEvent;
+        private readonly ManualResetEventSlim _endOfFileEvent;
+        private readonly ManualResetEventSlim _abortExecutionEvent;
         private readonly object _lockObject = new();
-        private bool _fileHasEnded = false;
-        private bool _isAborted = false;
 
-        public MemoryBlocksManager(int capacity, ManualResetEventSlim elementAvailabilityEvent)
+        /// <summary>
+        /// Инициализирует менеджер
+        /// </summary>
+        /// <param name="capacity">Начальная длина коллекции</param>
+        /// <param name="elementAvailabilityEvent">Событие для сообщения о доступности элемента</param>
+        /// <param name="endOfFileEvent">Событие для сообщения об окончании файла</param>
+        /// <param name="abortExecutionEvent">Событие для сообщения об ошибке</param>
+        public MemoryBlocksManager(int capacity, ManualResetEventSlim elementAvailabilityEvent, ManualResetEventSlim endOfFileEvent, ManualResetEventSlim abortExecutionEvent)
         {
             _memoryBlocks = new Queue<T>(capacity);
             _elementAvailabilityEvent = elementAvailabilityEvent;
+            _endOfFileEvent = endOfFileEvent;
+            _abortExecutionEvent = abortExecutionEvent;
         }
 
         /// <summary>
@@ -27,7 +36,7 @@ namespace VeeamTestTask.Implementation.MultiThread
         /// <param name="memoryBlock"></param>
         public void Enqueue(T memoryBlock)
         {
-            if (_isAborted)
+            if (_abortExecutionEvent.IsSet)
             {
                 return;
             }
@@ -62,7 +71,7 @@ namespace VeeamTestTask.Implementation.MultiThread
         {
             _elementAvailabilityEvent.Wait();
 
-            if (_isAborted)
+            if (_abortExecutionEvent.IsSet)
             {
                 result = default;
                 return false;
@@ -73,30 +82,13 @@ namespace VeeamTestTask.Implementation.MultiThread
                 var isElementAvailable = _memoryBlocks.TryDequeue(out result);
 
                 // Сбрасываем доступность элементов если очередь уже пуста при условии, что файл еще читается
-                if (_memoryBlocks.Count == 0 && !_fileHasEnded)
+                if (_memoryBlocks.Count == 0 && !_endOfFileEvent.IsSet)
                 {
                     _elementAvailabilityEvent.Reset();
                 }
 
                 return isElementAvailable;
             }
-        }
-
-        public void FileHasEnded()
-        {
-            // Тут был дэдлок с вероятностью примерно 1 к 200
-            lock (_lockObject)
-            {
-                _fileHasEnded = true;
-            }
-            _elementAvailabilityEvent.Set();
-        }
-
-        public void AbortExecution()
-        {
-            _isAborted = true;
-            _memoryBlocks.Clear();
-            _elementAvailabilityEvent.Set();
         }
     }
 }
